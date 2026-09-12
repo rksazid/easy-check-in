@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   // off Vercel without changing the build. Vercel ignores this setting.
   output: "standalone",
   serverExternalPackages: ["pg"],
+  experimental: {
+    // Avatar uploads are capped at 2 MB; the default action limit is 1 MB.
+    serverActions: { bodySizeLimit: "3mb" },
+  },
 };
 
 export default nextConfig;

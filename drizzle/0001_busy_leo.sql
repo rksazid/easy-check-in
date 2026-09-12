@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "avatar_source" text DEFAULT 'initials';

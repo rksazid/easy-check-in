@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Avatar } from "@/components/avatar";
 import { BrandLockup } from "@/components/brand";
 import { SignOutButton } from "@/components/sign-out-button";
 import { requireSession } from "@/lib/session";
@@ -14,10 +15,20 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <Link href="/" className="inline-flex rounded-md outline-offset-4">
             <BrandLockup />
           </Link>
-          <div className="flex items-center gap-3">
-            <span className="text-muted-foreground hidden text-sm sm:inline">
-              {session.user.name}
-            </span>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/profile"
+              className="hover:bg-accent flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors"
+            >
+              <Avatar
+                name={session.user.name}
+                src={session.user.image}
+                className="size-8 text-xs"
+              />
+              <span className="hidden text-sm font-medium sm:inline">
+                {session.user.name}
+              </span>
+            </Link>
             <SignOutButton />
           </div>
         </div>
