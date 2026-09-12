@@ -15,7 +15,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "make-super-admin": "tsx scripts/make-super-admin.ts"
+    "make-super-admin": "tsx scripts/make-super-admin.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "engines": {
     "node": ">=22.13"
@@ -40,6 +42,7 @@
     "zod": "^4.6.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",

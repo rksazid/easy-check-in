@@ -67,7 +67,8 @@ per-organization roles.
 | `npm run build`            | Production build                      |
 | `npm run typecheck`        | TypeScript, no emit                   |
 | `npm run lint`             | ESLint                                |
-| `npm test`                 | Vitest                                |
+| `npm test`                 | Unit tests (Vitest)                   |
+| `npm run test:e2e`         | Browser tests (Playwright)            |
 | `npm run db:generate`      | Write a migration from schema changes |
 | `npm run db:migrate`       | Apply pending migrations              |
 | `npm run db:studio`        | Browse the database                   |
@@ -77,6 +78,20 @@ per-organization roles.
 Run `npm run auth:generate` after changing the plugin list in `src/lib/auth.ts`,
 then `npm run db:generate && npm run db:migrate` to turn the regenerated schema
 into SQL.
+
+## Testing
+
+Unit tests (`npm test`) cover pure logic. Browser tests (`npm run test:e2e`) drive
+real flows through Chromium and need their own database, which they truncate
+before each run:
+
+```bash
+createdb easy_check_in_e2e
+DATABASE_URL="postgresql://localhost:5432/easy_check_in_e2e" npm run db:migrate
+npm run test:e2e
+```
+
+Point `E2E_DATABASE_URL` elsewhere if that name or host does not suit.
 
 ## Architecture
 
@@ -89,8 +104,9 @@ into SQL.
   `user`, `session`, `account`, `verification`, `organization`, `member`, and
   `invitation` tables; everything else is defined in
   `src/lib/db/schema/app.ts`.
-- `output: "standalone"` is set, so the app can be containerised and moved off
-  Vercel later.
+- Building with `BUILD_STANDALONE=1` emits a self-contained server bundle for
+  containerising the app later. It is off by default because `next start`
+  refuses to serve a standalone build, and Vercel ignores the setting anyway.
 
 All timestamps are stored in UTC and rendered in the viewer's local timezone.
 
