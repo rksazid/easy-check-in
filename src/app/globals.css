@@ -1,1 +1,151 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: var(--font-sans);
+    --font-mono: var(--font-mono);
+    --color-signal: var(--signal);
+    --color-signal-foreground: var(--signal-foreground);
+    --color-caution: var(--caution);
+    --color-caution-foreground: var(--caution-foreground);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * Palette is anchored on sea-ink and cool paper. `signal` is reserved for one
+ * meaning only — "you are inside the geofence / a session is running" — so the
+ * colour itself carries state and never appears as decoration.
+ */
+:root {
+    --background: oklch(0.979 0.0025 174);
+    --foreground: oklch(0.243 0.0243 213);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.243 0.0243 213);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.243 0.0243 213);
+    --primary: oklch(0.243 0.0243 213);
+    --primary-foreground: oklch(0.985 0.002 174);
+    --secondary: oklch(0.951 0.0053 174);
+    --secondary-foreground: oklch(0.243 0.0243 213);
+    --muted: oklch(0.951 0.0053 174);
+    --muted-foreground: oklch(0.524 0.0168 213);
+    --accent: oklch(0.941 0.0161 176);
+    --accent-foreground: oklch(0.243 0.0243 213);
+    --destructive: oklch(0.567 0.1784 20.5);
+    --border: oklch(0.899 0.0071 186);
+    --input: oklch(0.899 0.0071 186);
+    --ring: oklch(0.735 0.1287 176);
+    --signal: oklch(0.735 0.1287 176);
+    --signal-foreground: oklch(0.204 0.0287 213);
+    --caution: oklch(0.771 0.1448 71);
+    --caution-foreground: oklch(0.243 0.0243 213);
+    --chart-1: oklch(0.735 0.1287 176);
+    --chart-2: oklch(0.771 0.1448 71);
+    --chart-3: oklch(0.524 0.0168 213);
+    --chart-4: oklch(0.639 0.1091 213);
+    --chart-5: oklch(0.243 0.0243 213);
+    --radius: 0.75rem;
+    --sidebar: oklch(0.951 0.0053 174);
+    --sidebar-foreground: oklch(0.243 0.0243 213);
+    --sidebar-primary: oklch(0.243 0.0243 213);
+    --sidebar-primary-foreground: oklch(0.985 0.002 174);
+    --sidebar-accent: oklch(0.941 0.0161 176);
+    --sidebar-accent-foreground: oklch(0.243 0.0243 213);
+    --sidebar-border: oklch(0.899 0.0071 186);
+    --sidebar-ring: oklch(0.735 0.1287 176);
+}
+
+.dark {
+    --background: oklch(0.194 0.0223 213);
+    --foreground: oklch(0.951 0.0053 174);
+    --card: oklch(0.243 0.0243 213);
+    --card-foreground: oklch(0.951 0.0053 174);
+    --popover: oklch(0.243 0.0243 213);
+    --popover-foreground: oklch(0.951 0.0053 174);
+    --primary: oklch(0.951 0.0053 174);
+    --primary-foreground: oklch(0.194 0.0223 213);
+    --secondary: oklch(0.297 0.0232 213);
+    --secondary-foreground: oklch(0.951 0.0053 174);
+    --muted: oklch(0.297 0.0232 213);
+    --muted-foreground: oklch(0.702 0.0161 213);
+    --accent: oklch(0.336 0.0334 200);
+    --accent-foreground: oklch(0.951 0.0053 174);
+    --destructive: oklch(0.671 0.1621 20.5);
+    --border: oklch(1 0 0 / 12%);
+    --input: oklch(1 0 0 / 16%);
+    --ring: oklch(0.735 0.1287 176);
+    --signal: oklch(0.782 0.1352 176);
+    --signal-foreground: oklch(0.194 0.0223 213);
+    --caution: oklch(0.804 0.1448 71);
+    --caution-foreground: oklch(0.194 0.0223 213);
+    --chart-1: oklch(0.782 0.1352 176);
+    --chart-2: oklch(0.804 0.1448 71);
+    --chart-3: oklch(0.702 0.0161 213);
+    --chart-4: oklch(0.639 0.1091 213);
+    --chart-5: oklch(0.951 0.0053 174);
+    --sidebar: oklch(0.243 0.0243 213);
+    --sidebar-foreground: oklch(0.951 0.0053 174);
+    --sidebar-primary: oklch(0.782 0.1352 176);
+    --sidebar-primary-foreground: oklch(0.194 0.0223 213);
+    --sidebar-accent: oklch(0.336 0.0334 200);
+    --sidebar-accent-foreground: oklch(0.951 0.0053 174);
+    --sidebar-border: oklch(1 0 0 / 12%);
+    --sidebar-ring: oklch(0.735 0.1287 176);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+  /* Sensor readings — coordinates, distances, durations — are instrument data. */
+  .readout {
+    @apply font-mono tabular-nums tracking-tight;
+    }
+}
