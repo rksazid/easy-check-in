@@ -18,7 +18,8 @@
     "make-super-admin": "tsx scripts/make-super-admin.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "icons": "tsx scripts/generate-icons.ts"
   },
   "engines": {
     "node": ">=22.13"

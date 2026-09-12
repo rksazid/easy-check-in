@@ -7,6 +7,7 @@ import {
   sweepForgottenCheckIns,
 } from "@/actions/check-in";
 import { Elapsed } from "@/components/elapsed";
+import { InstallHint } from "@/components/install-hint";
 import { LocalTime } from "@/components/local-time";
 import { listMyOrganizations } from "@/lib/org";
 import { requireSession } from "@/lib/session";
@@ -51,6 +52,8 @@ export default async function CheckInPage() {
   return (
     <div className="space-y-12">
       <CheckInPanel active={active} />
+
+      <InstallHint />
 
       {past.length > 0 ? (
         <section className="space-y-3">

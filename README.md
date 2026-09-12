@@ -76,6 +76,7 @@ per-organization roles.
 | `npm run db:studio`        | Browse the database                   |
 | `npm run auth:generate`    | Regenerate Better Auth tables         |
 | `npm run make-super-admin` | Promote an account to super admin     |
+| `npm run icons`            | Redraw the app icons into `public/`   |
 
 Run `npm run auth:generate` after changing the plugin list in `src/lib/auth.ts`,
 then `npm run db:generate && npm run db:migrate` to turn the regenerated schema
@@ -111,6 +112,37 @@ Point `E2E_DATABASE_URL` elsewhere if that name or host does not suit.
   refuses to serve a standalone build, and Vercel ignores the setting anyway.
 
 All timestamps are stored in UTC and rendered in the viewer's local timezone.
+
+### Installing it as an app
+
+The app is a PWA: a manifest and a minimal service worker make it installable to
+a phone's home screen, where it opens without browser chrome. Android shows its
+own install prompt; iOS has none, so the app tells the user to use Share → Add
+to Home Screen.
+
+The service worker caches nothing on purpose. Every screen reflects live
+check-in state, and showing someone as checked in when they are not is the one
+mistake this app must never make.
+
+Icons are drawn by `npm run icons`, which renders the geofence mark and encodes
+the PNGs with Node's own zlib — no image toolchain, and identical output on any
+machine. Re-run it if the brand colours change.
+
+### What location tracking this app does and does not do
+
+Location is read **only when the user presses a button** — checking in, checking
+out, or storing a location mid-visit. Nothing is sampled in the background and
+nothing is recorded between those presses, which is what the consent screen
+promises.
+
+This is a deliberate limit, not an oversight. No browser can read location in
+the background: iOS suspends a backgrounded web app within seconds, and the web
+platform has no geofencing API. Continuous presence tracking would require
+wrapping this same frontend in Capacitor and shipping through the app stores.
+
+Because of that, a visit left open is closed at the organization's cap (12 hours
+by default) rather than tracked to its real end, and the report marks it as
+closed automatically.
 
 ### Maps
 
