@@ -1,4 +1,5 @@
 import { and, asc, desc, eq } from "drizzle-orm";
+import Link from "next/link";
 
 import { InviteMember } from "./invite-member";
 import { JoinRequestActions, MemberActions } from "./member-actions";
@@ -6,6 +7,7 @@ import { TimezoneForm } from "./timezone-form";
 import { Avatar } from "@/components/avatar";
 import { LocalTime } from "@/components/local-time";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
 import {
   invitation,
@@ -76,13 +78,18 @@ export default async function OrgAdminPage({
 
   return (
     <div className="space-y-10">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {organization.name}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {members.length} {members.length === 1 ? "member" : "members"}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {organization.name}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {members.length} {members.length === 1 ? "member" : "members"}
+          </p>
+        </div>
+        <Button asChild variant="outline">
+          <Link href={`/admin/${orgId}/places`}>Places</Link>
+        </Button>
       </div>
 
       <section className="space-y-3">

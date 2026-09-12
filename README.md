@@ -38,6 +38,7 @@ Create the database and apply the schema:
 ```bash
 createdb easy_check_in     # skip if you already have a database
 npm run db:migrate
+npm run db:seed
 npm run dev
 ```
 
@@ -71,6 +72,7 @@ per-organization roles.
 | `npm run test:e2e`         | Browser tests (Playwright)            |
 | `npm run db:generate`      | Write a migration from schema changes |
 | `npm run db:migrate`       | Apply pending migrations              |
+| `npm run db:seed`          | Insert reference data (place types)   |
 | `npm run db:studio`        | Browse the database                   |
 | `npm run auth:generate`    | Regenerate Better Auth tables         |
 | `npm run make-super-admin` | Promote an account to super admin     |
@@ -109,6 +111,18 @@ Point `E2E_DATABASE_URL` elsewhere if that name or host does not suit.
   refuses to serve a standalone build, and Vercel ignores the setting anyway.
 
 All timestamps are stored in UTC and rendered in the viewer's local timezone.
+
+### Maps
+
+Admins place a pin with Leaflet. Tiles come from OpenStreetMap and address
+search from [Photon](https://photon.komoot.io), both free and keyless — Photon
+specifically because the public Nominatim API forbids search-as-you-type.
+Requests go through `/api/geocode` so the upstream can be swapped for a keyed
+provider (Geoapify, LocationIQ) without touching the client.
+
+Both services run on fair use. If this grows beyond light traffic, move to a
+paid tile and geocoding provider, and keep the "© OpenStreetMap contributors"
+attribution visible on the map — it is a licence condition, not decoration.
 
 ## Deployment
 

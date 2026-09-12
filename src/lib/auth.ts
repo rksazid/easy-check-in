@@ -27,6 +27,12 @@ export const auth = betterAuth({
     // No transactional email provider in v1, so verification would lock users out.
     requireEmailVerification: false,
   },
+  rateLimit: {
+    // On by default in production. The browser suite signs in dozens of times
+    // from a single IP within seconds, so it opts out explicitly rather than
+    // weakening the limit that protects the real deployment.
+    enabled: process.env.AUTH_DISABLE_RATE_LIMIT !== "1",
+  },
   user: {
     additionalFields: {
       // Where `image` came from, so the profile page knows which actions to offer.

@@ -5,24 +5,34 @@ const E2E_DATABASE_URL =
   process.env.E2E_DATABASE_URL ??
   "postgresql://localhost:5432/easy_check_in_e2e";
 
-const pool = new Pool({ connectionString: E2E_DATABASE_URL });
+// Spec files share a worker, so the pool is created on demand and can be
+// reopened after an earlier file's teardown closed it.
+let pool: Pool | null = null;
+
+function getPool() {
+  pool ??= new Pool({ connectionString: E2E_DATABASE_URL });
+  return pool;
+}
 
 export async function resetDatabase() {
-  await pool.query(
+  await getPool().query(
     `TRUNCATE "user", session, account, verification,
               organization, member, invitation,
-              join_requests, organization_settings CASCADE`,
+              join_requests, organization_settings, places CASCADE`,
   );
 }
 
 export async function promoteToSuperAdmin(email: string) {
-  await pool.query(`UPDATE "user" SET role = 'admin' WHERE email = $1`, [
+  await getPool().query(`UPDATE "user" SET role = 'admin' WHERE email = $1`, [
     email,
   ]);
 }
 
 export async function closePool() {
-  await pool.end();
+  if (!pool) return;
+  const closing = pool;
+  pool = null;
+  await closing.end();
 }
 
 export type TestUser = {

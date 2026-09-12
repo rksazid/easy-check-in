@@ -30,6 +30,8 @@ export default defineConfig({
         "postgresql://localhost:5432/easy_check_in_e2e",
       BETTER_AUTH_SECRET: "e2e-secret-at-least-32-characters-long!!",
       BETTER_AUTH_URL: baseURL,
+      // The suite authenticates far faster than a human ever would.
+      AUTH_DISABLE_RATE_LIMIT: "1",
     },
   },
 });
