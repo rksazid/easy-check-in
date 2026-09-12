@@ -85,6 +85,41 @@ export async function countOpenCheckIns() {
   return Number(rows[0].count);
 }
 
+export async function getOrganizationId(slug: string) {
+  const { rows } = await getPool().query<{ id: string }>(
+    "SELECT id FROM organization WHERE slug = $1",
+    [slug],
+  );
+  return rows[0].id;
+}
+
+/** Inserts a completed visit with exact timestamps, for report arithmetic. */
+export async function seedVisit(options: {
+  email: string;
+  placeId: string;
+  checkedInAt: string;
+  checkedOutAt: string;
+}) {
+  await getPool().query(
+    `INSERT INTO check_ins
+       (id, user_id, place_id, organization_id,
+        checked_in_at, checked_out_at, checkout_reason)
+     VALUES (
+       gen_random_uuid()::text,
+       (SELECT id FROM "user" WHERE email = $1),
+       $2,
+       (SELECT organization_id FROM places WHERE id = $2),
+       $3::timestamptz, $4::timestamptz, 'manual'
+     )`,
+    [
+      options.email,
+      options.placeId,
+      options.checkedInAt,
+      options.checkedOutAt,
+    ],
+  );
+}
+
 export async function getCaptureKinds(email: string) {
   const { rows } = await getPool().query<{ kind: string }>(
     `SELECT lc.kind

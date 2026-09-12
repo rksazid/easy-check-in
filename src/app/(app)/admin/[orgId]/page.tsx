@@ -113,9 +113,14 @@ export default async function OrgAdminPage({
             {members.length} {members.length === 1 ? "member" : "members"}
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href={`/admin/${orgId}/places`}>Places</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/admin/${orgId}/places`}>Places</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`/admin/${orgId}/reports`}>Reports</Link>
+          </Button>
+        </div>
       </div>
 
       <section className="space-y-3">
