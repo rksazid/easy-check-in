@@ -67,6 +67,40 @@ test("a member asks to join and the admin approves", async ({ page }) => {
   await expect(page.getByText("Iron Gym")).toBeVisible();
 });
 
+test("a second super admin can manage an organization they never joined", async ({
+  page,
+}) => {
+  // Iron Gym was created by `boss`, who owns it. This account oversees the app
+  // but is a member of nothing — the situation for anyone who takes over
+  // administration later.
+  const overseer = makeUser("overseer");
+  await signUp(page, overseer);
+  await promoteToSuperAdmin(overseer.email);
+  await page.reload();
+
+  await page.getByRole("link", { name: "Super admin" }).click();
+
+  // Every organization listed here offers a Manage link, so every one of them
+  // has to open.
+  // count() does not auto-wait, so the list has to be on screen before counting.
+  await expect(page.getByRole("heading", { name: /All organizations/ })).toBeVisible();
+
+  const manageLinks = page.getByRole("link", { name: "Manage" });
+  const count = await manageLinks.count();
+  expect(count).toBeGreaterThan(0);
+
+  for (let index = 0; index < count; index++) {
+    const href = await manageLinks.nth(index).getAttribute("href");
+    const response = await page.goto(href as string);
+    expect(response?.status(), `${href} should open for a super admin`).toBe(
+      200,
+    );
+    await page.goBack();
+  }
+
+  await signOut(page);
+});
+
 test("a plain member cannot reach admin or super-admin pages", async ({
   page,
 }) => {

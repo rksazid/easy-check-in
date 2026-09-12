@@ -49,7 +49,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={cn("font-sans", archivo.variable, plexMono.variable)}
     >
-      <body className="min-h-dvh antialiased">
+      {/*
+        Browser extensions commonly add attributes to <body> before React
+        hydrates (password managers, colour pickers, dark-mode tools), which
+        React otherwise reports as a hydration mismatch the user cannot fix.
+        This suppresses the attribute comparison on this element only; children
+        are still checked normally.
+      */}
+      <body className="min-h-dvh antialiased" suppressHydrationWarning>
         {children}
         <Toaster position="top-center" />
         <ServiceWorker />

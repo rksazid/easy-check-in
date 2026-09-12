@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { db } from "@/lib/db/client";
 import { member, organization, organizationSettings } from "@/lib/db/schema";
-import { requireSession } from "@/lib/session";
+import { isSuperAdmin, requireSession } from "@/lib/session";
 
 /** Roles that may manage an organization. `owner` is what the creator gets. */
 const ORG_ADMIN_ROLES = new Set(["owner", "admin"]);
@@ -43,13 +43,18 @@ export async function listMyOrganizations(
 }
 
 /**
- * Loads an organization only if the signed-in user administers it. Members who
- * are not admins get a 404 rather than a redirect, so the URL leaks nothing
- * about which organizations exist.
+ * Loads an organization only if the signed-in user may administer it: either an
+ * owner/admin member, or an app-level super admin, who oversees every
+ * organization and is usually not a member of the ones they create for others.
+ *
+ * Anyone else gets a 404 rather than a redirect, so the URL leaks nothing about
+ * which organizations exist.
  */
 export async function requireOrgAdmin(organizationId: string) {
   const session = await requireSession();
 
+  // Selected FROM organization with the membership joined on, so an admin who
+  // is not a member still resolves the organization itself.
   const [row] = await db
     .select({
       role: member.role,
@@ -57,24 +62,28 @@ export async function requireOrgAdmin(organizationId: string) {
       slug: organization.slug,
       timezone: organizationSettings.timezone,
     })
-    .from(member)
-    .innerJoin(organization, eq(member.organizationId, organization.id))
+    .from(organization)
+    .leftJoin(
+      member,
+      and(
+        eq(member.organizationId, organization.id),
+        eq(member.userId, session.user.id),
+      ),
+    )
     .leftJoin(
       organizationSettings,
       eq(organizationSettings.organizationId, organization.id),
     )
-    .where(
-      and(
-        eq(member.userId, session.user.id),
-        eq(member.organizationId, organizationId),
-      ),
-    )
+    .where(eq(organization.id, organizationId))
     .limit(1);
 
-  if (!row || !isOrgAdminRole(row.role)) notFound();
+  const superAdmin = isSuperAdmin(session.user);
+
+  if (!row || (!superAdmin && !isOrgAdminRole(row.role))) notFound();
 
   return {
     session,
+    isSuperAdmin: superAdmin,
     organization: {
       id: organizationId,
       name: row.name,
