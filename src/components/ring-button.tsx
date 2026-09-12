@@ -38,12 +38,16 @@ export function RingButton({
             : "bg-primary text-primary-foreground hover:brightness-110 active:scale-[0.97]",
       )}
     >
-      {/* The radius ring. Static by default; it only animates while working. */}
+      {/*
+        The radius ring. Its colour is fixed rather than inherited: `currentColor`
+        would be the button's own label colour, which is near-white in the
+        checked-in state and therefore invisible against the page behind it.
+      */}
       <span
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute inset-[-14px] rounded-full border-2 border-dashed",
-          disabled ? "border-border" : "border-current opacity-40",
+          "border-muted-foreground/45 pointer-events-none absolute inset-[-14px]",
+          "rounded-full border-2 border-dashed",
           pending && "motion-safe:animate-spin [animation-duration:3s]",
         )}
       />

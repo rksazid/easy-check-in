@@ -227,9 +227,11 @@ function NotCheckedIn() {
             </h1>
             <p className="text-muted-foreground text-sm">
               {nearest.organizationName} ·{" "}
+              {/* Only the measurement is set in the readout face. */}
               <span className="readout">
-                {formatDistance(nearest.distanceM)} away
-              </span>
+                {formatDistance(nearest.distanceM)}
+              </span>{" "}
+              away
             </p>
           </div>
 
