@@ -39,10 +39,13 @@ export function PlaceForm({
   organizationId,
   placeTypes,
   initial,
+  needsApproval = false,
 }: {
   organizationId: string;
   placeTypes: { id: number; name: string }[];
   initial: PlaceFormValues;
+  /** True when the person adding this place cannot approve it themselves. */
+  needsApproval?: boolean;
 }) {
   const router = useRouter();
   const editing = Boolean(initial.id);
@@ -68,9 +71,15 @@ export function PlaceForm({
 
   useEffect(() => {
     if (!state?.ok) return;
-    toast.success(editing ? "Place saved" : "Place added");
-    router.push(`/admin/${organizationId}/places`);
-  }, [state, editing, organizationId, router]);
+    toast.success(
+      editing
+        ? "Place saved"
+        : needsApproval
+          ? "Place added — an admin will review it"
+          : "Place added",
+    );
+    router.push(`/orgs/${organizationId}/places`);
+  }, [state, editing, needsApproval, organizationId, router]);
 
   return (
     <form action={formAction} className="space-y-6">
@@ -149,13 +158,19 @@ export function PlaceForm({
 
       <div className="flex gap-2">
         <Button type="submit" disabled={pending || !placeTypeId}>
-          {pending ? "Saving…" : editing ? "Save changes" : "Add place"}
+          {pending
+            ? "Saving…"
+            : editing
+              ? "Save changes"
+              : needsApproval
+                ? "Submit for approval"
+                : "Add place"}
         </Button>
         <Button
           type="button"
           variant="ghost"
           disabled={pending}
-          onClick={() => router.push(`/admin/${organizationId}/places`)}
+          onClick={() => router.push(`/orgs/${organizationId}/places`)}
         >
           Cancel
         </Button>

@@ -96,14 +96,23 @@ export default async function OrganizationsPage() {
                     <Badge variant="secondary">{membership.role}</Badge>
                   ) : null}
                 </span>
-                {membership.isAdmin ? (
+                <span className="flex items-center gap-4">
+                  {/* Anyone here can add a place, so everyone gets this link. */}
                   <Link
-                    href={`/admin/${membership.organizationId}`}
+                    href={`/orgs/${membership.organizationId}/places`}
                     className="text-sm font-medium underline underline-offset-4"
                   >
-                    Manage
+                    Places
                   </Link>
-                ) : null}
+                  {membership.isAdmin ? (
+                    <Link
+                      href={`/admin/${membership.organizationId}`}
+                      className="text-sm font-medium underline underline-offset-4"
+                    >
+                      Manage
+                    </Link>
+                  ) : null}
+                </span>
               </li>
             ))}
           </ul>

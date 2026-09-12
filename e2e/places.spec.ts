@@ -1,15 +1,24 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  acceptLocationConsent,
   closePool,
   makeUser,
   promoteToSuperAdmin,
   resetDatabase,
+  seedPlace,
+  searchNearbyPlaces,
   signIn,
+  signOut,
   signUp,
 } from "./helpers";
 
 const owner = makeUser("owner");
+
+// Trafalgar Square: where every place in this file is pinned.
+const GYM = { latitude: 51.5081, longitude: -0.1281 };
+
+test.use({ permissions: ["geolocation"], geolocation: GYM });
 
 test.beforeAll(resetDatabase);
 test.afterAll(closePool);
@@ -118,4 +127,103 @@ test("coordinates outside the valid range are refused", async ({ page }) => {
   await expect(
     page.getByText(/Enter coordinates as latitude, longitude/),
   ).toBeVisible();
+});
+
+test("a member's place waits for approval before anyone can check in to it", async ({
+  page,
+  context,
+}) => {
+  const member = makeUser("proposer");
+
+  // Join the organization the owner set up in the first test.
+  await signUp(page, member);
+  await page.getByRole("link", { name: "Organizations" }).click();
+  await page.getByRole("button", { name: "Ask to join" }).click();
+  await page.getByRole("button", { name: "Send request" }).click();
+  await expect(page.getByText("Waiting for approval")).toBeVisible();
+  await signOut(page);
+
+  await signIn(page, owner);
+  await page.goto("/orgs");
+  await page.getByRole("link", { name: "Manage" }).first().click();
+  await page.getByRole("button", { name: "Approve" }).click();
+  await expect(page.getByText("Nothing waiting.")).toBeVisible();
+  await signOut(page);
+
+  // The member adds a place. It is not usable yet.
+  await stubExternalMapServices(page);
+  await signIn(page, member);
+  await page.goto("/orgs");
+  await page.getByRole("link", { name: "Places" }).first().click();
+  await page.getByRole("link", { name: "Add a place" }).click();
+
+  await page.getByLabel("Name").fill("Members Annexe");
+  await page.getByLabel("Kind of place").click();
+  await page.getByRole("option", { name: "Gym" }).click();
+  await page.getByLabel("Or paste coordinates").fill("51.5081, -0.1281");
+  await page.getByRole("button", { name: "Go" }).click();
+  await page.getByRole("button", { name: "Submit for approval" }).click();
+
+  await expect(page.getByText("Waiting for approval")).toBeVisible();
+
+  // Standing right on top of it, the check-in page finds the approved place at
+  // the same coordinates but not this one. Asserting the approved place appears
+  // is what stops this passing merely because nothing loaded.
+  await context.setGeolocation(GYM);
+  await page.goto("/");
+  await acceptLocationConsent(page);
+  await searchNearbyPlaces(page);
+  await expect(
+    page.getByRole("heading", { name: "Riverside Branch" }),
+  ).toBeVisible();
+  await expect(page.getByText("Members Annexe")).toHaveCount(0);
+  await signOut(page);
+
+  // The admin approves it.
+  await signIn(page, owner);
+  await page.goto("/orgs");
+  await page.getByRole("link", { name: "Places" }).first().click();
+  await expect(page.getByText("added by Proposer Tester")).toBeVisible();
+  await page.getByRole("button", { name: "Approve" }).click();
+  await expect(page.getByText("Members Annexe approved")).toBeVisible();
+  await signOut(page);
+
+  // Now it is offered alongside the others.
+  await signIn(page, member);
+  await page.goto("/");
+  await acceptLocationConsent(page);
+  await searchNearbyPlaces(page);
+  await expect(page.getByText("Members Annexe")).toBeVisible();
+});
+
+test("a rejected place never becomes checkable", async ({ page }) => {
+  await stubExternalMapServices(page);
+
+  const placeId = await seedPlace({
+    organizationSlug: "iron-gym",
+    name: "Rejected Spot",
+    latitude: 51.5081,
+    longitude: -0.1281,
+    status: "pending",
+  });
+  expect(placeId).toBeTruthy();
+
+  await signIn(page, owner);
+  await page.goto("/orgs");
+  await page.getByRole("link", { name: "Places" }).first().click();
+
+  await page
+    .getByRole("listitem")
+    .filter({ hasText: "Rejected Spot" })
+    .getByRole("button", { name: "Reject" })
+    .click();
+  await expect(page.getByText("Rejected Spot rejected")).toBeVisible();
+
+  await page.goto("/");
+  await acceptLocationConsent(page);
+  await searchNearbyPlaces(page);
+  await expect(
+    page.getByRole("heading", { name: "Riverside Branch" }),
+  ).toBeVisible();
+  await expect(page.getByText("Rejected Spot")).toHaveCount(0);
 });

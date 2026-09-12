@@ -36,7 +36,11 @@ export async function closePool() {
   await closing.end();
 }
 
-/** Inserts a place directly, so check-in tests don't re-drive the map UI. */
+/**
+ * Inserts a place directly, so check-in tests don't re-drive the map UI.
+ * Approved by default, because most tests care about what happens afterwards;
+ * pass `status: "pending"` to exercise the approval queue.
+ */
 export async function seedPlace(options: {
   organizationSlug: string;
   name: string;
@@ -44,15 +48,17 @@ export async function seedPlace(options: {
   longitude: number;
   radiusM?: number;
   typeName?: string;
+  status?: "pending" | "approved" | "rejected";
 }) {
   const { rows } = await getPool().query<{ id: string }>(
     `INSERT INTO places
-       (id, organization_id, place_type_id, name, latitude, longitude, radius_m)
+       (id, organization_id, place_type_id, name, latitude, longitude,
+        radius_m, status)
      VALUES (
        gen_random_uuid()::text,
        (SELECT id FROM organization WHERE slug = $1),
        (SELECT id FROM place_types WHERE name = $2),
-       $3, $4, $5, $6
+       $3, $4, $5, $6, $7
      )
      RETURNING id`,
     [
@@ -62,6 +68,7 @@ export async function seedPlace(options: {
       options.latitude,
       options.longitude,
       options.radiusM ?? 150,
+      options.status ?? "approved",
     ],
   );
   return rows[0].id;
@@ -175,6 +182,17 @@ export async function acceptLocationConsent(page: Page) {
   const agree = page.getByRole("button", { name: "Got it" });
   if (await agree.isVisible().catch(() => false)) {
     await agree.click();
+  }
+}
+
+/**
+ * The check-in page reads location only when asked, so a returning visitor
+ * lands on a button rather than a list. This presses it when it is showing.
+ */
+export async function searchNearbyPlaces(page: Page) {
+  const search = page.getByRole("button", { name: /Find places near me/ });
+  if (await search.isVisible().catch(() => false)) {
+    await search.click();
   }
 }
 

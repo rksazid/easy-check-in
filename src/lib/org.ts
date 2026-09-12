@@ -93,8 +93,13 @@ export async function requireOrgAdmin(organizationId: string) {
   };
 }
 
+/**
+ * For anything a member of an organization may do. Super admins pass without a
+ * membership row, since they oversee every organization.
+ */
 export async function requireMembership(organizationId: string) {
   const session = await requireSession();
+  const superAdmin = isSuperAdmin(session.user);
 
   const [row] = await db
     .select({ role: member.role })
@@ -107,6 +112,12 @@ export async function requireMembership(organizationId: string) {
     )
     .limit(1);
 
-  if (!row) redirect("/orgs");
-  return { session, role: row.role, isAdmin: isOrgAdminRole(row.role) };
+  if (!row && !superAdmin) redirect("/orgs");
+
+  return {
+    session,
+    role: row?.role ?? null,
+    isMember: Boolean(row),
+    isAdmin: superAdmin || isOrgAdminRole(row?.role),
+  };
 }

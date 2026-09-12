@@ -150,6 +150,8 @@ export async function findNearbyPlaces(
           memberships.map((row) => row.organizationId),
         ),
         eq(places.isActive, true),
+        // A place only becomes checkable once an admin has approved it.
+        eq(places.status, "approved"),
       ),
     );
 
@@ -189,6 +191,7 @@ export async function checkIn(
       longitude: places.longitude,
       radiusM: places.radiusM,
       isActive: places.isActive,
+      status: places.status,
     })
     .from(places)
     .innerJoin(
@@ -201,7 +204,7 @@ export async function checkIn(
     .where(eq(places.id, placeId))
     .limit(1);
 
-  if (!place || !place.isActive) {
+  if (!place || !place.isActive || place.status !== "approved") {
     return { ok: false, error: "That place is not available to you." };
   }
 

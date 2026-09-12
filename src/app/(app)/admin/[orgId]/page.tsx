@@ -115,7 +115,7 @@ export default async function OrgAdminPage({
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
-            <Link href={`/admin/${orgId}/places`}>Places</Link>
+            <Link href={`/orgs/${orgId}/places`}>Places</Link>
           </Button>
           <Button asChild variant="outline">
             <Link href={`/admin/${orgId}/reports`}>Reports</Link>

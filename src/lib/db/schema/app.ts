@@ -101,6 +101,9 @@ export const DEFAULT_RADIUS_M = 150;
 export const MIN_RADIUS_M = 25;
 export const MAX_RADIUS_M = 2000;
 
+export const PLACE_STATUSES = ["pending", "approved", "rejected"] as const;
+export type PlaceStatus = (typeof PLACE_STATUSES)[number];
+
 /** A physical location people check in at. */
 export const places = pgTable(
   "places",
@@ -119,6 +122,16 @@ export const places = pgTable(
     longitude: doublePrecision("longitude").notNull(),
     /** How close someone must be to check in here. */
     radiusM: integer("radius_m").notNull().default(DEFAULT_RADIUS_M),
+    /**
+     * Any member may propose a place; an admin decides whether it counts.
+     * Separate from `isActive`, because archiving a place that has served its
+     * purpose is a different act from rejecting a proposal.
+     */
+    status: text("status").notNull().default("pending"),
+    reviewedBy: text("reviewed_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: utcTimestamp("reviewed_at"),
     isActive: boolean("is_active").notNull().default(true),
     createdBy: text("created_by").references(() => user.id, {
       onDelete: "set null",
@@ -128,6 +141,11 @@ export const places = pgTable(
   },
   (table) => [
     index("places_org_active_idx").on(table.organizationId, table.isActive),
+    index("places_org_status_idx").on(table.organizationId, table.status),
+    check(
+      "places_status_check",
+      sql`${table.status} IN ('pending', 'approved', 'rejected')`,
+    ),
     check(
       "places_latitude_check",
       sql`${table.latitude} BETWEEN -90 AND 90`,
