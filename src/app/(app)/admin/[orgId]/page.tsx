@@ -1,18 +1,23 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 
+import { AdminCheckOutButton } from "./admin-check-out-button";
 import { InviteMember } from "./invite-member";
 import { JoinRequestActions, MemberActions } from "./member-actions";
 import { TimezoneForm } from "./timezone-form";
+import { sweepForgottenCheckIns } from "@/actions/check-in";
 import { Avatar } from "@/components/avatar";
+import { Elapsed } from "@/components/elapsed";
 import { LocalTime } from "@/components/local-time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
 import {
+  checkIns,
   invitation,
   joinRequests,
   member,
+  places,
   user as userTable,
 } from "@/lib/db/schema";
 import { isOrgAdminRole, requireOrgAdmin } from "@/lib/org";
@@ -31,7 +36,10 @@ export default async function OrgAdminPage({
   const { orgId } = await params;
   const { organization, session } = await requireOrgAdmin(orgId);
 
-  const [members, requests, pendingInvitations] = await Promise.all([
+  // Closes anything left open past the cap before the admin looks at the list.
+  await sweepForgottenCheckIns();
+
+  const [members, requests, pendingInvitations, openVisits] = await Promise.all([
     db
       .select({
         memberId: member.id,
@@ -74,6 +82,24 @@ export default async function OrgAdminPage({
           eq(invitation.status, "pending"),
         ),
       ),
+    db
+      .select({
+        id: checkIns.id,
+        checkedInAt: checkIns.checkedInAt,
+        name: userTable.name,
+        image: userTable.image,
+        placeName: places.name,
+      })
+      .from(checkIns)
+      .innerJoin(userTable, eq(checkIns.userId, userTable.id))
+      .innerJoin(places, eq(checkIns.placeId, places.id))
+      .where(
+        and(
+          eq(checkIns.organizationId, orgId),
+          isNull(checkIns.checkedOutAt),
+        ),
+      )
+      .orderBy(asc(checkIns.checkedInAt)),
   ]);
 
   return (
@@ -126,6 +152,34 @@ export default async function OrgAdminPage({
           </ul>
         )}
       </section>
+
+      {openVisits.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold">Here right now</h2>
+          <ul className="divide-border/70 border-border/70 divide-y rounded-lg border">
+            {openVisits.map((visit) => (
+              <li
+                key={visit.id}
+                className="flex items-center gap-3 px-4 py-3"
+              >
+                <Avatar name={visit.name} src={visit.image} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{visit.name}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {visit.placeName} ·{" "}
+                    <Elapsed since={visit.checkedInAt} />
+                  </p>
+                </div>
+                <AdminCheckOutButton
+                  organizationId={orgId}
+                  checkInId={visit.id}
+                  name={visit.name}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Members</h2>

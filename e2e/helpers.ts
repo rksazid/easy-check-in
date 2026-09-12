@@ -18,7 +18,8 @@ export async function resetDatabase() {
   await getPool().query(
     `TRUNCATE "user", session, account, verification,
               organization, member, invitation,
-              join_requests, organization_settings, places CASCADE`,
+              join_requests, organization_settings, places,
+              check_ins, location_captures CASCADE`,
   );
 }
 
@@ -33,6 +34,68 @@ export async function closePool() {
   const closing = pool;
   pool = null;
   await closing.end();
+}
+
+/** Inserts a place directly, so check-in tests don't re-drive the map UI. */
+export async function seedPlace(options: {
+  organizationSlug: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radiusM?: number;
+  typeName?: string;
+}) {
+  const { rows } = await getPool().query<{ id: string }>(
+    `INSERT INTO places
+       (id, organization_id, place_type_id, name, latitude, longitude, radius_m)
+     VALUES (
+       gen_random_uuid()::text,
+       (SELECT id FROM organization WHERE slug = $1),
+       (SELECT id FROM place_types WHERE name = $2),
+       $3, $4, $5, $6
+     )
+     RETURNING id`,
+    [
+      options.organizationSlug,
+      options.typeName ?? "Gym",
+      options.name,
+      options.latitude,
+      options.longitude,
+      options.radiusM ?? 150,
+    ],
+  );
+  return rows[0].id;
+}
+
+/** Backdates an open visit so the forgotten-check-out sweep will close it. */
+export async function backdateOpenCheckIn(email: string, hoursAgo: number) {
+  await getPool().query(
+    `UPDATE check_ins
+        SET checked_in_at = now() - make_interval(hours => $2)
+      WHERE checked_out_at IS NULL
+        AND user_id = (SELECT id FROM "user" WHERE email = $1)`,
+    [email, hoursAgo],
+  );
+}
+
+export async function countOpenCheckIns() {
+  const { rows } = await getPool().query<{ count: string }>(
+    "SELECT count(*) FROM check_ins WHERE checked_out_at IS NULL",
+  );
+  return Number(rows[0].count);
+}
+
+export async function getCaptureKinds(email: string) {
+  const { rows } = await getPool().query<{ kind: string }>(
+    `SELECT lc.kind
+       FROM location_captures lc
+       JOIN check_ins ci ON ci.id = lc.check_in_id
+       JOIN "user" u ON u.id = ci.user_id
+      WHERE u.email = $1
+      ORDER BY lc.created_at`,
+    [email],
+  );
+  return rows.map((row) => row.kind);
 }
 
 export type TestUser = {
@@ -67,6 +130,17 @@ export async function signIn(page: Page, user: TestUser) {
   await page.getByLabel("Password").fill(user.password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("link", { name: "Check in" })).toBeVisible();
+}
+
+/**
+ * The consent gate is remembered in localStorage, which is empty in every fresh
+ * browser context, so each test that reaches the check-in page clears it.
+ */
+export async function acceptLocationConsent(page: Page) {
+  const agree = page.getByRole("button", { name: "Got it" });
+  if (await agree.isVisible().catch(() => false)) {
+    await agree.click();
+  }
 }
 
 export async function signOut(page: Page) {

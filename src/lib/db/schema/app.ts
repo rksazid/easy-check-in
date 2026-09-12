@@ -29,11 +29,20 @@ const id = () =>
  * organization plugin's `metadata` JSON because report month boundaries need
  * the timezone inside SQL.
  */
+export const DEFAULT_FORGOT_CHECKOUT_HOURS = 12;
+
 export const organizationSettings = pgTable("organization_settings", {
   organizationId: text("organization_id")
     .primaryKey()
     .references(() => organization.id, { onDelete: "cascade" }),
   timezone: text("timezone").notNull().default("UTC"),
+  /**
+   * How long a visit may stay open before it is closed as forgotten. This is
+   * about keeping reports honest, not tracking: nothing watches the user.
+   */
+  forgotCheckoutHours: integer("forgot_checkout_hours")
+    .notNull()
+    .default(DEFAULT_FORGOT_CHECKOUT_HOURS),
 });
 
 export const JOIN_REQUEST_STATUSES = ["pending", "approved", "rejected"] as const;
@@ -132,6 +141,91 @@ export const places = pgTable(
     check(
       "places_radius_check",
       sql`${table.radiusM} BETWEEN ${sql.raw(String(MIN_RADIUS_M))} AND ${sql.raw(String(MAX_RADIUS_M))}`,
+    ),
+  ],
+);
+
+export const CHECKOUT_REASONS = ["manual", "auto_forgot", "admin"] as const;
+export type CheckoutReason = (typeof CHECKOUT_REASONS)[number];
+
+/**
+ * One visit to a place. `checked_out_at IS NULL` means the visit is still open;
+ * a partial unique index on that condition is what stops a person being checked
+ * in to two places at once.
+ */
+export const checkIns = pgTable(
+  "check_ins",
+  {
+    id: id(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    placeId: text("place_id")
+      .notNull()
+      .references(() => places.id),
+    /** Denormalised from the place so reports never join through it. */
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    checkedInAt: utcTimestamp("checked_in_at").notNull().defaultNow(),
+    checkedOutAt: utcTimestamp("checked_out_at"),
+    checkoutReason: text("checkout_reason"),
+  },
+  (table) => [
+    uniqueIndex("check_ins_one_open_per_user")
+      .on(table.userId)
+      .where(sql`${table.checkedOutAt} IS NULL`),
+    index("check_ins_org_started_idx").on(
+      table.organizationId,
+      table.checkedInAt,
+    ),
+    index("check_ins_user_started_idx").on(table.userId, table.checkedInAt),
+    index("check_ins_place_idx").on(table.placeId),
+    check(
+      "check_ins_interval_check",
+      sql`${table.checkedOutAt} IS NULL OR ${table.checkedOutAt} >= ${table.checkedInAt}`,
+    ),
+    check(
+      "check_ins_reason_check",
+      sql`${table.checkoutReason} IS NULL
+          OR ${table.checkoutReason} IN ('manual', 'auto_forgot', 'admin')`,
+    ),
+  ],
+);
+
+export const CAPTURE_KINDS = ["check_in", "check_out", "manual"] as const;
+export type CaptureKind = (typeof CAPTURE_KINDS)[number];
+
+/**
+ * A position the user deliberately submitted — at check-in, at check-out, or by
+ * pressing "Store location". The MVP never samples location on its own, so this
+ * table is a record of explicit acts, not a movement trail.
+ */
+export const locationCaptures = pgTable(
+  "location_captures",
+  {
+    id: id(),
+    checkInId: text("check_in_id")
+      .notNull()
+      .references(() => checkIns.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    latitude: doublePrecision("latitude").notNull(),
+    longitude: doublePrecision("longitude").notNull(),
+    /** Radius of uncertainty the browser reported, in metres. */
+    accuracyM: doublePrecision("accuracy_m"),
+    /** Distance from the place, computed server-side — never trusted from input. */
+    distanceM: doublePrecision("distance_m").notNull(),
+    inside: boolean("inside").notNull(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("location_captures_check_in_idx").on(
+      table.checkInId,
+      table.createdAt,
+    ),
+    check(
+      "location_captures_kind_check",
+      sql`${table.kind} IN ('check_in', 'check_out', 'manual')`,
     ),
   ],
 );
