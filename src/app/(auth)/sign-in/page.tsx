@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { SignInForm } from "./sign-in-form";
 import { getSession } from "@/lib/session";
 
-export const metadata = { title: "Sign in · Easy Check-In" };
+export const metadata = { title: "Sign in" };
 
 export default async function SignInPage() {
   if (await getSession()) redirect("/");

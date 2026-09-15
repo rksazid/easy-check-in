@@ -28,9 +28,10 @@ export type ProximityVerdict = {
  *
  * The radius means what the admin drew, so `inside` is measured against it
  * exactly. Checking in is slightly more forgiving: a reading of "200 m away,
- * ±80 m" genuinely might be inside a 150 m radius, so the device's own stated
- * uncertainty is allowed to close the gap — capped, so that a device claiming
- * ±5 km cannot wave someone through from the next town.
+ * give or take 80 m" genuinely might be inside a 150 m radius, so the device's
+ * own stated uncertainty is allowed to close the gap. That slack is capped, or
+ * a device claiming 5 km of uncertainty could wave someone through from the
+ * next town.
  */
 export function evaluateProximity(
   place: PlaceGeofence,

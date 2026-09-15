@@ -75,7 +75,7 @@ export function PlaceForm({
       editing
         ? "Place saved"
         : needsApproval
-          ? "Place added — an admin will review it"
+          ? "Place added. An admin will review it"
           : "Place added",
     );
     router.push(`/orgs/${organizationId}/places`);

@@ -26,8 +26,8 @@ export function gravatarUrl(
 }
 
 /**
- * Returns false whenever we cannot prove an avatar exists — a slow or broken
- * Gravatar must never block sign-up, it just means we offer an upload instead.
+ * Returns false whenever we cannot prove an avatar exists. A slow or broken
+ * Gravatar must never block sign-up; it just means we offer an upload instead.
  */
 export async function hasGravatar(email: string, timeoutMs = 2500) {
   try {

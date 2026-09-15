@@ -66,6 +66,10 @@ export const auth = betterAuth({
     username({ minUsernameLength: 3, maxUsernameLength: 30 }),
     organization({
       creatorRole: "owner",
+      // We have no email provider, so no account ever gets a verified address.
+      // Left at its default, accepting an invitation would be refused for
+      // everyone. Invitation ids are opaque, so the link itself is the secret.
+      requireEmailVerificationOnInvitation: false,
       allowUserToCreateOrganization: async (user) => isSuperAdmin(user),
       // Invitations are delivered in-app; this callback intentionally does nothing.
       sendInvitationEmail: async () => {},

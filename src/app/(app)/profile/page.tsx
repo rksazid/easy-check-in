@@ -1,8 +1,9 @@
 import { AvatarSection } from "./avatar-section";
 import { ProfileForm } from "./profile-form";
+import { SignOutButton } from "@/components/sign-out-button";
 import { requireSession } from "@/lib/session";
 
-export const metadata = { title: "Your profile · Easy Check-In" };
+export const metadata = { title: "Your profile" };
 
 export default async function ProfilePage() {
   const session = await requireSession();
@@ -31,6 +32,10 @@ export default async function ProfilePage() {
         username={user.username ?? ""}
         email={user.email}
       />
+
+      <hr className="border-border/70" />
+
+      <SignOutButton />
     </div>
   );
 }

@@ -26,7 +26,7 @@ export function BrowseOrganizations({
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Join another organization</h2>
         <p className="text-muted-foreground border-border/70 rounded-lg border border-dashed px-4 py-8 text-center text-sm">
-          There&rsquo;s nothing else to join right now.
+          Nothing else to join right now.
         </p>
       </section>
     );
@@ -70,7 +70,7 @@ export function BrowseOrganizations({
 
       {visible.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          No organization matches &ldquo;{filter}&rdquo;.
+          No organization matches that search.
         </p>
       ) : null}
     </section>

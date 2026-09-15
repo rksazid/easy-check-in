@@ -11,10 +11,10 @@ const FORMATS = {
 const subscribe = () => () => {};
 
 /**
- * Timestamps are stored in UTC and must read in the viewer's own zone. The
- * server has no way to know that zone, so it renders UTC and the browser
- * re-renders in local time once hydrated — `useSyncExternalStore` is the
- * supported way to let those two renders legitimately differ.
+ * Timestamps are stored in UTC and need to read in the viewer's own zone. The
+ * server cannot know that zone, so it renders UTC and the browser re-renders in
+ * local time once hydrated. `useSyncExternalStore` is the supported way to let
+ * those two renders differ on purpose.
  */
 export function LocalTime({
   value,

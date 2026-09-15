@@ -19,7 +19,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Easy Check-In",
+  title: { default: "Easy Check-In", template: "%s | Easy Check-In" },
   description: "Check in where you are, in one tap.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -38,9 +38,12 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#0C1F26",
-  // The check-in button is thumb-sized by design; zooming should stay available.
+  // The check-in button is thumb-sized by design, so zooming stays available.
   width: "device-width",
   initialScale: 1,
+  // Lets the page paint behind the notch and home indicator, which is what the
+  // safe-area insets in the tab bar then account for.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

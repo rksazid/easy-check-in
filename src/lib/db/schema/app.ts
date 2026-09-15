@@ -215,9 +215,9 @@ export const CAPTURE_KINDS = ["check_in", "check_out", "manual"] as const;
 export type CaptureKind = (typeof CAPTURE_KINDS)[number];
 
 /**
- * A position the user deliberately submitted — at check-in, at check-out, or by
- * pressing "Store location". The MVP never samples location on its own, so this
- * table is a record of explicit acts, not a movement trail.
+ * A position the user deliberately submitted: at check-in, at check-out, or by
+ * pressing "Store location". Nothing here samples location on its own, so this
+ * table records deliberate acts rather than a movement trail.
  */
 export const locationCaptures = pgTable(
   "location_captures",
@@ -231,7 +231,7 @@ export const locationCaptures = pgTable(
     longitude: doublePrecision("longitude").notNull(),
     /** Radius of uncertainty the browser reported, in metres. */
     accuracyM: doublePrecision("accuracy_m"),
-    /** Distance from the place, computed server-side — never trusted from input. */
+    /** Distance from the place. Computed on the server, never taken from input. */
     distanceM: doublePrecision("distance_m").notNull(),
     inside: boolean("inside").notNull(),
     createdAt: utcTimestamp("created_at").notNull().defaultNow(),

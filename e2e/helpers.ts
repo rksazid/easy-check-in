@@ -175,28 +175,37 @@ export async function signIn(page: Page, user: TestUser) {
 }
 
 /**
- * The consent gate is remembered in localStorage, which is empty in every fresh
- * browser context, so each test that reaches the check-in page clears it.
+ * Gets the check-in page to the point of listing places: accept the consent
+ * screen if it is showing, then press the button that reads location. Consent
+ * lives in a cookie, so a fresh browser context always sees the gate first.
  */
 export async function acceptLocationConsent(page: Page) {
   const agree = page.getByRole("button", { name: "Got it" });
   if (await agree.isVisible().catch(() => false)) {
     await agree.click();
   }
+  await searchNearbyPlaces(page);
 }
 
 /**
  * The check-in page reads location only when asked, so a returning visitor
- * lands on a button rather than a list. This presses it when it is showing.
+ * lands on a button rather than a list.
+ *
+ * The wait matters: granting consent re-renders the panel from the server, so
+ * checking visibility straight away would miss a button that is about to exist.
+ * Someone already checked in never sees it, hence the swallowed timeout.
  */
 export async function searchNearbyPlaces(page: Page) {
   const search = page.getByRole("button", { name: /Find places near me/ });
+  await search.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
   if (await search.isVisible().catch(() => false)) {
     await search.click();
   }
 }
 
 export async function signOut(page: Page) {
+  // Signing out lives on the profile page now, not in the header.
+  await page.goto("/profile");
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
 }

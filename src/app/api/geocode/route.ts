@@ -4,10 +4,12 @@ import type { GeocodeResult } from "@/lib/geocode";
 import { getSession } from "@/lib/session";
 
 /**
- * Proxies Photon, which — unlike the public Nominatim API — permits
- * search-as-you-type. Going through our own route means the upstream can be
- * swapped for a keyed provider later without touching the client, and lets us
- * attach a contact header and cache responses.
+ * Proxies Photon. The public Nominatim API forbids search-as-you-type, which
+ * is the whole point of this box, so Photon does the searching instead.
+ *
+ * Going through our own route keeps the upstream swappable for a keyed provider
+ * later without touching the client, and lets us attach a contact header and
+ * cache responses.
  */
 const PHOTON_SEARCH = "https://photon.komoot.io/api/";
 const PHOTON_REVERSE = "https://photon.komoot.io/reverse";

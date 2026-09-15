@@ -8,9 +8,9 @@ Built as a PWA so it runs on any phone without an app store.
 
 ## Requirements
 
-- **Node 22.13 or newer** (`.nvmrc` pins 22.13.1 — run `nvm use`). Older 22.x
+- **Node 22.13 or newer** (`.nvmrc` pins 22.13.1, so run `nvm use`). Older 22.x
   releases break the Better Auth CLI and ESLint's dependencies.
-- **PostgreSQL** — [Neon](https://neon.com) free tier in production, or any
+- **PostgreSQL**. [Neon](https://neon.com) free tier in production, or any
   local Postgres for development.
 
 ## Setup
@@ -98,7 +98,7 @@ Point `E2E_DATABASE_URL` elsewhere if that name or host does not suit.
 
 ## Architecture
 
-- **Next.js App Router** — server actions for anything the UI triggers; route
+- **Next.js App Router**. Server actions for anything the UI triggers; route
   handlers only where a non-React client calls in (auth, CSV download, the
   geocoding proxy).
 - **Drizzle ORM** over the standard `pg` driver, so the same code runs against
@@ -113,24 +113,43 @@ Point `E2E_DATABASE_URL` elsewhere if that name or host does not suit.
 
 All timestamps are stored in UTC and rendered in the viewer's local timezone.
 
+### Screens
+
+Navigation is a single `<nav>` laid out two ways: a fixed tab bar along the
+bottom on a phone, and a row of links in the header from the `sm` breakpoint up.
+
+| Screen | What it is for |
+| ------ | -------------- |
+| `/` | Check in and out. One large button, and recent visits underneath |
+| `/activity` | The signed-in person's month: totals, where the time went, full history |
+| `/visits/[id]` | One visit in full, with the readings behind it on a map |
+| `/orgs` | Invitations, the organizations you belong to, and ones you can join |
+| `/orgs/[id]` | An organization and the people in it |
+| `/orgs/[id]/places` | Places, plus adding one and (for admins) approving them |
+| `/admin/[id]` | Running an organization: requests, members, invitations, settings |
+| `/profile` | Name, username, avatar, and signing out |
+
+A visit is readable by the person who made it and by admins of its organization.
+Everyone else gets a 404, so an id gives nothing away.
+
 ### Installing it as an app
 
 The app is a PWA: a manifest and a minimal service worker make it installable to
 a phone's home screen, where it opens without browser chrome. Android shows its
-own install prompt; iOS has none, so the app tells the user to use Share → Add
-to Home Screen.
+own install prompt; iOS has none, so the app tells the user to use Share, then
+Add to Home Screen.
 
 The service worker caches nothing on purpose. Every screen reflects live
 check-in state, and showing someone as checked in when they are not is the one
 mistake this app must never make.
 
 Icons are drawn by `npm run icons`, which renders the geofence mark and encodes
-the PNGs with Node's own zlib — no image toolchain, and identical output on any
-machine. Re-run it if the brand colours change.
+the PNGs with Node's own zlib, so there is no image toolchain to install and the
+output is identical on any machine. Re-run it if the brand colours change.
 
 ### What location tracking this app does and does not do
 
-Location is read **only when the user presses a button** — checking in, checking
+Location is read **only when the user presses a button**: checking in, checking
 out, or storing a location mid-visit. Nothing is sampled in the background and
 nothing is recorded between those presses, which is what the consent screen
 promises.
@@ -147,14 +166,15 @@ closed automatically.
 ### Maps
 
 Admins place a pin with Leaflet. Tiles come from OpenStreetMap and address
-search from [Photon](https://photon.komoot.io), both free and keyless — Photon
-specifically because the public Nominatim API forbids search-as-you-type.
+search from [Photon](https://photon.komoot.io), both free and keyless. Photon is
+used because the public Nominatim API forbids search-as-you-type.
 Requests go through `/api/geocode` so the upstream can be swapped for a keyed
 provider (Geoapify, LocationIQ) without touching the client.
 
 Both services run on fair use. If this grows beyond light traffic, move to a
 paid tile and geocoding provider, and keep the "© OpenStreetMap contributors"
-attribution visible on the map — it is a licence condition, not decoration.
+attribution visible on the map, which is a licence condition rather than
+decoration.
 
 ## Deployment
 

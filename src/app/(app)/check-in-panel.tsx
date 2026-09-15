@@ -12,26 +12,17 @@ import {
   type NearbyPlace,
   type Position,
 } from "@/actions/check-in";
+import { grantLocationConsent } from "@/actions/consent";
 import { Elapsed } from "@/components/elapsed";
 import { RingButton } from "@/components/ring-button";
 import { Button } from "@/components/ui/button";
 import { formatDistance } from "@/lib/geo/haversine";
 
-const CONSENT_KEY = "easy-check-in.location-consent";
 const GEOLOCATION_OPTIONS: PositionOptions = {
   enableHighAccuracy: true,
   timeout: 15_000,
   maximumAge: 10_000,
 };
-
-function readConsent() {
-  try {
-    return localStorage.getItem(CONSENT_KEY) === "granted";
-  } catch {
-    // Private browsing can refuse storage; ask again rather than break.
-    return false;
-  }
-}
 
 function currentPosition(): Promise<Position> {
   return new Promise((resolve, reject) => {
@@ -59,12 +50,17 @@ function currentPosition(): Promise<Position> {
   });
 }
 
-export function CheckInPanel({ active }: { active: ActiveCheckIn | null }) {
-  return active ? (
-    <CheckedIn active={active} />
-  ) : (
-    <NotCheckedIn />
-  );
+export function CheckInPanel({
+  active,
+  consented,
+}: {
+  active: ActiveCheckIn | null;
+  /** Read from a cookie on the server, so the first paint is already right. */
+  consented: boolean;
+}) {
+  if (active) return <CheckedIn active={active} />;
+  if (!consented) return <ConsentGate />;
+  return <NotCheckedIn />;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -74,7 +70,7 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
 
   function finish() {
     startTransition(async () => {
-      // Checking out must not hinge on a location fix: someone who has already
+      // Checking out must not hinge on a location fix. Someone who has already
       // left, or who declines the prompt, still needs to close their visit.
       let position: Position | null = null;
       try {
@@ -108,14 +104,14 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-8 py-6 text-center">
+    <div className="flex flex-col items-center gap-8 py-2 text-center">
       <div className="space-y-1">
         <p className="text-muted-foreground text-sm">Checked in at</p>
         <h1 className="text-3xl font-semibold tracking-tight">
           {active.placeName}
         </h1>
         <p className="text-muted-foreground text-sm">
-          {active.organizationName} · {active.placeTypeName}
+          {active.organizationName}, {active.placeTypeName}
         </p>
       </div>
 
@@ -142,7 +138,7 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
         <p className="text-muted-foreground mx-auto max-w-xs text-xs">
           Optional. Records that you were here now
           {active.captureCount > 1
-            ? ` — ${active.captureCount} readings so far.`
+            ? `. ${active.captureCount} readings so far.`
             : "."}
         </p>
       </div>
@@ -153,7 +149,6 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
 /* -------------------------------------------------------------------------- */
 
 function NotCheckedIn() {
-  const [consented, setConsented] = useState(readConsent);
   const [places, setPlaces] = useState<NearbyPlace[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -170,20 +165,6 @@ function NotCheckedIn() {
       }
     });
   }, []);
-
-  function grantConsent() {
-    try {
-      localStorage.setItem(CONSENT_KEY, "granted");
-    } catch {
-      // Not being able to remember the answer is survivable; carry on.
-    }
-    setConsented(true);
-    look();
-  }
-
-  if (!consented) {
-    return <ConsentGate onAgree={grantConsent} />;
-  }
 
   function enter(place: NearbyPlace) {
     startTransition(async () => {
@@ -206,7 +187,7 @@ function NotCheckedIn() {
   const others = places?.slice(1) ?? [];
 
   return (
-    <div className="flex flex-col items-center gap-8 py-6 text-center">
+    <div className="flex flex-col items-center gap-8 py-2 text-center">
       {places === null ? (
         <>
           <RingButton
@@ -226,8 +207,7 @@ function NotCheckedIn() {
               {nearest.name}
             </h1>
             <p className="text-muted-foreground text-sm">
-              {nearest.organizationName} ·{" "}
-              {/* Only the measurement is set in the readout face. */}
+              {nearest.organizationName},{" "}
               <span className="readout">
                 {formatDistance(nearest.distanceM)}
               </span>{" "}
@@ -299,9 +279,11 @@ function NotCheckedIn() {
   );
 }
 
-function ConsentGate({ onAgree }: { onAgree: () => void }) {
+function ConsentGate() {
+  const [pending, startTransition] = useTransition();
+
   return (
-    <div className="mx-auto max-w-md space-y-5 py-6">
+    <div className="mx-auto max-w-md space-y-5 py-2">
       <h1 className="text-2xl font-semibold tracking-tight">
         Checking in uses your location
       </h1>
@@ -311,8 +293,8 @@ function ConsentGate({ onAgree }: { onAgree: () => void }) {
           Your device is asked for its position{" "}
           <strong className="text-foreground">
             only when you press a button
-          </strong>{" "}
-          — checking in, checking out, or storing your location during a visit.
+          </strong>
+          : checking in, checking out, or storing your location during a visit.
         </p>
         <p>
           Nothing is read in the background, and nothing is recorded between
@@ -320,18 +302,22 @@ function ConsentGate({ onAgree }: { onAgree: () => void }) {
           reading was, and when.
         </p>
         <p>
-          Your organization&rsquo;s admins see when you checked in and out and
-          for how long, so they can produce attendance reports.
+          Admins of your organization see when you checked in and out and for how
+          long, so they can put together attendance reports.
         </p>
       </div>
 
-      <Button size="lg" onClick={onAgree}>
-        Got it — continue
+      <Button
+        size="lg"
+        disabled={pending}
+        onClick={() => startTransition(async () => grantLocationConsent())}
+      >
+        {pending ? "One moment" : "Got it, continue"}
       </Button>
 
       <p className="text-muted-foreground text-xs">
-        Your browser will ask for permission separately, and you can withdraw it
-        at any time in your browser settings.
+        Your browser asks for permission separately, and you can withdraw it at
+        any time in your browser settings.
       </p>
     </div>
   );

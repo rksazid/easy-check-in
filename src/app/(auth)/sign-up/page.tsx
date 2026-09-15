@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { SignUpForm } from "./sign-up-form";
 import { getSession } from "@/lib/session";
 
-export const metadata = { title: "Create account · Easy Check-In" };
+export const metadata = { title: "Create account" };
 
 export default async function SignUpPage() {
   if (await getSession()) redirect("/");

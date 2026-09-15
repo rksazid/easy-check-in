@@ -19,7 +19,7 @@ export async function generateMetadata({
     .from(organization)
     .where(eq(organization.id, orgId))
     .limit(1);
-  return { title: `Places · ${org?.name ?? "Easy Check-In"}` };
+  return { title: `Places in ${org?.name ?? "your organization"}` };
 }
 
 export default async function PlacesPage({
@@ -123,7 +123,7 @@ export default async function PlacesPage({
                     </p>
                   ) : null}
                   <p className="text-muted-foreground readout text-xs">
-                    {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)} ·{" "}
+                    {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}, within{" "}
                     {place.radiusM} m
                   </p>
                   {isAdmin && place.proposerName ? (
@@ -183,7 +183,7 @@ export default async function PlacesPage({
                     </p>
                   ) : null}
                   <p className="text-muted-foreground readout text-xs">
-                    {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)} ·{" "}
+                    {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}, within{" "}
                     {place.radiusM} m
                   </p>
                 </div>

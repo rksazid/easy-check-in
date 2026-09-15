@@ -155,7 +155,9 @@ export function LocationPicker({
       .match(/^(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)$/);
 
     if (!match) {
-      setError("Enter coordinates as latitude, longitude — e.g. 51.5072, -0.1276");
+      setError(
+        "Enter coordinates as latitude, longitude. For example 51.5072, -0.1276",
+      );
       return;
     }
 
@@ -306,7 +308,7 @@ export function LocationPicker({
 
       <p className="text-muted-foreground readout text-xs">
         {value.latitude.toFixed(6)}, {value.longitude.toFixed(6)}
-        {value.address ? ` · ${value.address}` : ""}
+        {value.address ? `, ${value.address}` : ""}
       </p>
     </div>
   );

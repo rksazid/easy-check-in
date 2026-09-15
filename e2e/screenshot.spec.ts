@@ -11,7 +11,7 @@ import {
 } from "./helpers";
 
 /**
- * Not an assertion — a way to look at the finished screens. Run with
+ * Not an assertion. This is a way to look at the finished screens. Run with
  * `npx playwright test e2e/screenshot.spec.ts --grep @screens`.
  */
 const GYM = { latitude: 51.5081, longitude: -0.1281 };
@@ -53,4 +53,12 @@ test("@screens capture the check-in screens", async ({ page }) => {
   await page.getByRole("button", { name: "Check in", exact: false }).click();
   await page.waitForTimeout(1200);
   await page.screenshot({ path: "screenshots/03-checked-in.png" });
+
+  await page.goto("/activity");
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: "screenshots/04-activity.png" });
+
+  await page.goto("/orgs");
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: "screenshots/05-orgs.png" });
 });

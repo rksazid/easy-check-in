@@ -100,7 +100,7 @@ export function InviteMember({ organizationId }: { organizationId: string }) {
 
       {searched && results.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          No account matches that email, or they&rsquo;re already a member.
+          No account matches that email, or they are already a member.
         </p>
       ) : null}
     </div>

@@ -38,8 +38,7 @@ test("a member asks to join and the admin approves", async ({ page }) => {
   await signUp(page, alice);
 
   await page.getByRole("link", { name: "Organizations" }).click();
-  // Matched without the leading "You’re" because the page uses a curly apostrophe.
-  await expect(page.getByText(/not in an organization yet/)).toBeVisible();
+  await expect(page.getByText(/not joined an organization yet/)).toBeVisible();
 
   await page.getByRole("button", { name: "Ask to join" }).click();
   await page.getByLabel("Note for the admin").fill("I train here on Tuesdays");
@@ -71,8 +70,8 @@ test("a second super admin can manage an organization they never joined", async 
   page,
 }) => {
   // Iron Gym was created by `boss`, who owns it. This account oversees the app
-  // but is a member of nothing — the situation for anyone who takes over
-  // administration later.
+  // but is a member of nothing, which is the situation for anyone who takes
+  // over administration later.
   const overseer = makeUser("overseer");
   await signUp(page, overseer);
   await promoteToSuperAdmin(overseer.email);

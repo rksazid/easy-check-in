@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * The one action on the page, drawn as the geofence seen from above: a dashed
- * outer ring for the radius, a solid disc for the place. Deliberately large —
- * this gets pressed one-handed, outdoors, often in a hurry.
+ * outer ring for the radius, a solid disc for the place. It is deliberately
+ * large, because it gets pressed one-handed, outdoors, often in a hurry.
  */
 export function RingButton({
   label,

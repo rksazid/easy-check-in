@@ -27,7 +27,7 @@ export async function generateMetadata({
 }: PageProps<"/admin/[orgId]/reports">) {
   const { orgId } = await params;
   const { organization } = await requireOrgAdmin(orgId);
-  return { title: `Reports · ${organization.name}` };
+  return { title: `Reports for ${organization.name}` };
 }
 
 export default async function ReportsPage({
@@ -175,7 +175,7 @@ export default async function ReportsPage({
                     {row.lastOut ? (
                       <LocalTime value={row.lastOut} format="date" />
                     ) : (
-                      "—"
+                      "None"
                     )}
                   </td>
                 </tr>
@@ -201,7 +201,7 @@ export default async function ReportsPage({
                   </span>
                 </span>
                 <span className="readout">
-                  {formatHours(place.seconds)} · {place.visits} visits
+                  {formatHours(place.seconds)} over {place.visits} visits
                 </span>
               </li>
             ))}

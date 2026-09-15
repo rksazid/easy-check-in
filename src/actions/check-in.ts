@@ -30,8 +30,8 @@ export type CheckInResult =
 
 /**
  * Closes visits left open past their organization's cap. This is bookkeeping so
- * reports stay meaningful — nothing observes the user, and the visit is closed
- * at the cap rather than "now" so a forgotten check-out cannot inflate a total.
+ * reports stay meaningful. Nothing observes the user, and the visit is closed at
+ * the cap rather than at "now", so a forgotten check-out cannot inflate a total.
  *
  * Runs opportunistically on pages that read check-in state, which avoids
  * depending on a scheduler the free hosting tier does not provide.
@@ -281,8 +281,8 @@ export async function storeLocation(
 
 /**
  * Ends the visit. A position is recorded when one is offered, but checking out
- * never depends on it — someone who has already left, or who declines the
- * permission, must still be able to close their visit.
+ * never depends on it. Someone who has already left, or who declines the
+ * permission, still needs to be able to close their visit.
  */
 export async function checkOut(
   position?: Position | null,

@@ -156,7 +156,7 @@ export async function setOrgTimezone(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Joining — the member's side                                                 */
+/* Joining, from the member's side                                            */
 /* -------------------------------------------------------------------------- */
 
 export async function requestToJoin(
@@ -241,7 +241,7 @@ export async function respondToInvitation(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Joining — the admin's side                                                  */
+/* Joining, from the admin's side                                             */
 /* -------------------------------------------------------------------------- */
 
 export async function decideJoinRequest(

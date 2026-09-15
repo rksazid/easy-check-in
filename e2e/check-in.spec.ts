@@ -112,6 +112,8 @@ test("a visit left open past the cap is closed automatically", async ({
   expect(await countOpenCheckIns()).toBe(0);
 
   // Closed at the cap, not at "now", so a forgotten check-out cannot inflate it.
-  await expect(page.getByText("(closed automatically)")).toBeVisible();
-  await expect(page.getByText("12h 00m")).toBeVisible();
+  // How a visit ended is spelled out in the history on the activity page.
+  await page.goto("/activity");
+  await expect(page.getByText("Closed automatically").first()).toBeVisible();
+  await expect(page.getByText("12h 00m").first()).toBeVisible();
 });

@@ -7,7 +7,7 @@ import { db } from "@/lib/db/client";
 import { member, organization, organizationSettings } from "@/lib/db/schema";
 import { requireSuperAdmin } from "@/lib/session";
 
-export const metadata = { title: "Super admin · Easy Check-In" };
+export const metadata = { title: "Super admin" };
 
 export default async function SuperAdminPage() {
   await requireSuperAdmin();
@@ -66,15 +66,16 @@ export default async function SuperAdminPage() {
                 className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
               >
                 <div className="min-w-0">
-                  <p className="font-medium">{org.name}</p>
+                  <p className="font-medium">
+                    {org.name}{" "}
+                    <span className="readout text-muted-foreground text-xs font-normal">
+                      {org.slug}
+                    </span>
+                  </p>
                   <p className="text-muted-foreground text-xs">
-                    <span className="readout">{org.slug}</span>
-                    {" · "}
                     {org.memberCount}{" "}
-                    {org.memberCount === 1 ? "member" : "members"}
-                    {" · "}
-                    {org.timezone ?? "UTC"}
-                    {" · created "}
+                    {org.memberCount === 1 ? "member" : "members"}, on{" "}
+                    {org.timezone ?? "UTC"}, started{" "}
                     <LocalTime value={org.createdAt} format="date" />
                   </p>
                 </div>

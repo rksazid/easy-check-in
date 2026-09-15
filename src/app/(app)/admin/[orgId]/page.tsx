@@ -27,7 +27,7 @@ export async function generateMetadata({
 }: PageProps<"/admin/[orgId]">) {
   const { orgId } = await params;
   const { organization } = await requireOrgAdmin(orgId);
-  return { title: `${organization.name} · Easy Check-In` };
+  return { title: `Manage ${organization.name}` };
 }
 
 export default async function OrgAdminPage({
@@ -145,7 +145,9 @@ export default async function OrgAdminPage({
                     {request.email}
                   </p>
                   {request.message ? (
-                    <p className="text-sm">&ldquo;{request.message}&rdquo;</p>
+                    <p className="border-border/70 border-l-2 pl-3 text-sm">
+                      {request.message}
+                    </p>
                   ) : null}
                   <p className="text-muted-foreground text-xs">
                     <LocalTime value={request.createdAt} format="date" />
@@ -171,7 +173,7 @@ export default async function OrgAdminPage({
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{visit.name}</p>
                   <p className="text-muted-foreground text-xs">
-                    {visit.placeName} ·{" "}
+                    {visit.placeName}, here{" "}
                     <Elapsed since={visit.checkedInAt} />
                   </p>
                 </div>

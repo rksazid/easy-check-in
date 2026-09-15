@@ -12,8 +12,7 @@ export function SignOutButton() {
 
   return (
     <Button
-      variant="ghost"
-      size="sm"
+      variant="outline"
       disabled={pending}
       onClick={() =>
         startTransition(async () => {

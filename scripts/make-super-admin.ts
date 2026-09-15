@@ -1,5 +1,5 @@
 /**
- * Promotes an existing account to app-level super admin — the role that may
+ * Promotes an existing account to app-level super admin, the role that can
  * create organizations and assign their admins. Run it once after signing up
  * the first account:
  *
