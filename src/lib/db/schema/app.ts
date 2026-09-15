@@ -8,13 +8,14 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { organization, user } from "./auth";
+import { member, organization, user } from "./auth";
 
 /** Every domain timestamp is stored in UTC and rendered in the viewer's zone. */
 const utcTimestamp = (name: string) => timestamp(name, { withTimezone: true });
@@ -245,5 +246,56 @@ export const locationCaptures = pgTable(
       "location_captures_kind_check",
       sql`${table.kind} IN ('check_in', 'check_out', 'manual')`,
     ),
+  ],
+);
+
+/**
+ * A label an organization puts on its people, usually the project or team they
+ * are on at the moment. Tags belong to one organization and mean nothing
+ * outside it, so the same person can be "Backend" in one and "Night shift" in
+ * another.
+ */
+export const tags = pgTable(
+  "tags",
+  {
+    id: id(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+  },
+  (table) => [
+    // Case-insensitive, so "Backend" and "backend" cannot both exist and leave
+    // people guessing which one to use.
+    uniqueIndex("tags_unique_name_per_org").on(
+      table.organizationId,
+      sql`lower(${table.name})`,
+    ),
+    index("tags_org_idx").on(table.organizationId),
+  ],
+);
+
+/**
+ * Which tags a membership carries. Keyed on the membership rather than the user,
+ * which is what keeps a person's tags in one organization out of another.
+ */
+export const memberTags = pgTable(
+  "member_tags",
+  {
+    memberId: text("member_id")
+      .notNull()
+      .references(() => member.id, { onDelete: "cascade" }),
+    tagId: text("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+    assignedAt: utcTimestamp("assigned_at").notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.memberId, table.tagId] }),
+    index("member_tags_tag_idx").on(table.tagId),
   ],
 );

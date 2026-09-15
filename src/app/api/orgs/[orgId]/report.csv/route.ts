@@ -31,6 +31,7 @@ export async function GET(
     timeZone: organization.timezone,
     placeId: query.get("place"),
     placeTypeId: Number(query.get("type")) || null,
+    tagId: query.get("tag"),
   });
 
   const rows = [

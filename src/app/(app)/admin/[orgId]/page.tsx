@@ -3,7 +3,9 @@ import Link from "next/link";
 
 import { AdminCheckOutButton } from "./admin-check-out-button";
 import { InviteMember } from "./invite-member";
+import { MemberTagPicker } from "./member-tag-picker";
 import { JoinRequestActions, MemberActions } from "./member-actions";
+import { TagManager } from "./tag-manager";
 import { TimezoneForm } from "./timezone-form";
 import { sweepForgottenCheckIns } from "@/actions/check-in";
 import { Avatar } from "@/components/avatar";
@@ -21,6 +23,7 @@ import {
   user as userTable,
 } from "@/lib/db/schema";
 import { isOrgAdminRole, requireOrgAdmin } from "@/lib/org";
+import { countTagUse, listOrganizationTags, tagsByMember } from "@/lib/tags";
 
 export async function generateMetadata({
   params,
@@ -39,7 +42,8 @@ export default async function OrgAdminPage({
   // Closes anything left open past the cap before the admin looks at the list.
   await sweepForgottenCheckIns();
 
-  const [members, requests, pendingInvitations, openVisits] = await Promise.all([
+  const [members, requests, pendingInvitations, openVisits, orgTags, tagUse, memberTagMap] =
+    await Promise.all([
     db
       .select({
         memberId: member.id,
@@ -100,7 +104,10 @@ export default async function OrgAdminPage({
         ),
       )
       .orderBy(asc(checkIns.checkedInAt)),
-  ]);
+      listOrganizationTags(orgId),
+      countTagUse(orgId),
+      tagsByMember(orgId),
+    ]);
 
   return (
     <div className="space-y-10">
@@ -192,18 +199,27 @@ export default async function OrgAdminPage({
         <h2 className="text-sm font-semibold">Members</h2>
         <ul className="divide-border/70 border-border/70 divide-y rounded-lg border">
           {members.map((row) => (
-            <li key={row.memberId} className="flex items-center gap-3 px-4 py-3">
+            <li key={row.memberId} className="flex flex-wrap items-start gap-3 px-4 py-3">
               <Avatar name={row.name} src={row.image} />
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 font-medium">
-                  {row.name}
-                  {isOrgAdminRole(row.role) ? (
-                    <Badge variant="secondary">{row.role}</Badge>
-                  ) : null}
-                </p>
-                <p className="text-muted-foreground readout truncate text-xs">
-                  {row.email}
-                </p>
+              <div className="min-w-0 flex-1 space-y-2">
+                <div>
+                  <p className="flex items-center gap-2 font-medium">
+                    {row.name}
+                    {isOrgAdminRole(row.role) ? (
+                      <Badge variant="secondary">{row.role}</Badge>
+                    ) : null}
+                  </p>
+                  <p className="text-muted-foreground readout truncate text-xs">
+                    {row.email}
+                  </p>
+                </div>
+                <MemberTagPicker
+                  organizationId={orgId}
+                  memberId={row.memberId}
+                  name={row.name}
+                  allTags={orgTags}
+                  assigned={memberTagMap.get(row.memberId) ?? []}
+                />
               </div>
               {row.userId === session.user.id || row.role === "owner" ? null : (
                 <MemberActions
@@ -215,6 +231,16 @@ export default async function OrgAdminPage({
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold">Tags</h2>
+        <p className="text-muted-foreground max-w-prose text-sm">
+          Labels for the people here, usually the project or team they are on.
+          They belong to this organization only, so the same person can carry
+          different tags elsewhere.
+        </p>
+        <TagManager organizationId={orgId} tags={tagUse} />
       </section>
 
       <section className="space-y-3">

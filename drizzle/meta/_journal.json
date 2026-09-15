@@ -50,6 +50,13 @@
       "when": 1789470796323,
       "tag": "0006_complete_clint_barton",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789471154336,
+      "tag": "0007_strange_marvel_apes",
+      "breakpoints": true
     }
   ]
 }

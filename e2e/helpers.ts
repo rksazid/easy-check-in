@@ -100,6 +100,16 @@ export async function getOrganizationId(slug: string) {
   return rows[0].id;
 }
 
+export async function getTagId(organizationSlug: string, name: string) {
+  const { rows } = await getPool().query<{ id: string }>(
+    `SELECT t.id FROM tags t
+       JOIN organization o ON o.id = t.organization_id
+      WHERE o.slug = $1 AND lower(t.name) = lower($2)`,
+    [organizationSlug, name],
+  );
+  return rows[0]?.id ?? null;
+}
+
 /** Inserts a completed visit with exact timestamps, for report arithmetic. */
 export async function seedVisit(options: {
   email: string;

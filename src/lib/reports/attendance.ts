@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, isNotNull, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
@@ -7,6 +7,7 @@ import {
   placeTypes,
   user as userTable,
 } from "@/lib/db/schema";
+import { userIdsWithTag } from "@/lib/tags";
 import { monthWindow, type MonthWindow } from "./month-window";
 
 export type AttendanceFilters = {
@@ -16,6 +17,8 @@ export type AttendanceFilters = {
   timeZone: string;
   placeId?: string | null;
   placeTypeId?: number | null;
+  /** Narrows the report to people carrying this tag in this organization. */
+  tagId?: string | null;
 };
 
 export type MemberAttendance = {
@@ -48,12 +51,15 @@ function clampedSeconds(startUtc: Date, endUtc: Date) {
   )), 0)::bigint`;
 }
 
-export async function getAttendanceReport(
+/**
+ * Conditions shared by every figure in a report, so the totals, the table and
+ * the per-place strip can never disagree about what was counted.
+ */
+async function buildConditions(
   filters: AttendanceFilters,
-): Promise<AttendanceReport> {
-  const window = monthWindow(filters.year, filters.month, filters.timeZone);
-  const { startUtc, endUtc } = window;
-
+  startUtc: Date,
+  endUtc: Date,
+) {
   const conditions = [
     eq(checkIns.organizationId, filters.organizationId),
     // Open visits have no measurable duration yet; they are shown separately.
@@ -68,6 +74,26 @@ export async function getAttendanceReport(
   if (filters.placeTypeId) {
     conditions.push(eq(places.placeTypeId, filters.placeTypeId));
   }
+  if (filters.tagId) {
+    const userIds = await userIdsWithTag(filters.organizationId, filters.tagId);
+    // Nobody carries the tag, so the report is empty rather than unfiltered.
+    conditions.push(
+      userIds.length
+        ? inArray(checkIns.userId, userIds)
+        : sql`false`,
+    );
+  }
+
+  return conditions;
+}
+
+export async function getAttendanceReport(
+  filters: AttendanceFilters,
+): Promise<AttendanceReport> {
+  const window = monthWindow(filters.year, filters.month, filters.timeZone);
+  const { startUtc, endUtc } = window;
+
+  const conditions = await buildConditions(filters, startUtc, endUtc);
 
   const rows = await db
     .select({
@@ -121,17 +147,7 @@ export async function getPlaceTotals(filters: AttendanceFilters) {
     filters.timeZone,
   );
 
-  const conditions = [
-    eq(checkIns.organizationId, filters.organizationId),
-    isNotNull(checkIns.checkedOutAt),
-    lt(checkIns.checkedInAt, endUtc),
-    gt(checkIns.checkedOutAt, startUtc),
-  ];
-
-  if (filters.placeId) conditions.push(eq(checkIns.placeId, filters.placeId));
-  if (filters.placeTypeId) {
-    conditions.push(eq(places.placeTypeId, filters.placeTypeId));
-  }
+  const conditions = await buildConditions(filters, startUtc, endUtc);
 
   const rows = await db
     .select({

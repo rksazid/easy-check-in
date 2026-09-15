@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
 import { organization, organizationSettings } from "@/lib/db/schema";
 import { isOrgAdminRole, requireMembership } from "@/lib/org";
+import { listOrganizationTags, tagsByMember } from "@/lib/tags";
 import { getOrganizationSummary, listOrganizationMembers } from "@/lib/visits";
 
 export async function generateMetadata({
@@ -49,9 +50,11 @@ export default async function OrganizationPage({
 
   if (!org) notFound();
 
-  const [members, summary] = await Promise.all([
+  const [members, summary, orgTags, memberTagMap] = await Promise.all([
     listOrganizationMembers(orgId),
     getOrganizationSummary(orgId),
+    listOrganizationTags(orgId),
+    tagsByMember(orgId),
   ]);
 
   return (
@@ -93,6 +96,19 @@ export default async function OrganizationPage({
         <Stat label="Visits this week" value={String(summary.visitsThisWeek)} />
       </dl>
 
+      {orgTags.length > 0 ? (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold">Tags in use</h2>
+          <div className="flex flex-wrap gap-1.5">
+            {orgTags.map((tag) => (
+              <Badge key={tag.id} variant="outline">
+                {tag.name}
+              </Badge>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">People</h2>
         <ul className="divide-border/70 border-border/70 divide-y rounded-lg border">
@@ -116,6 +132,15 @@ export default async function OrganizationPage({
                   {row.username ? ", " : ""}
                   joined <LocalTime value={row.joinedAt} format="date" />
                 </p>
+                {(memberTagMap.get(row.memberId) ?? []).length > 0 ? (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {(memberTagMap.get(row.memberId) ?? []).map((tag) => (
+                      <Badge key={tag.id} variant="secondary">
+                        {tag.name}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </li>
           ))}

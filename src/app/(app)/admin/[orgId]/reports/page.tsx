@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
 import { places, placeTypes } from "@/lib/db/schema";
 import { requireOrgAdmin } from "@/lib/org";
+import { listOrganizationTags } from "@/lib/tags";
 import {
   formatHours,
   getAttendanceReport,
@@ -55,6 +56,7 @@ export default async function ReportsPage({
 
   const placeId = asString(query.place) || null;
   const placeTypeId = Number(asString(query.type)) || null;
+  const tagId = asString(query.tag) || null;
 
   const filters = {
     organizationId: orgId,
@@ -63,9 +65,10 @@ export default async function ReportsPage({
     timeZone: organization.timezone,
     placeId,
     placeTypeId,
+    tagId,
   };
 
-  const [report, placeTotals, orgPlaces, types] = await Promise.all([
+  const [report, placeTotals, orgPlaces, types, orgTags] = await Promise.all([
     getAttendanceReport(filters),
     getPlaceTotals(filters),
     db
@@ -77,12 +80,14 @@ export default async function ReportsPage({
       .select({ id: placeTypes.id, name: placeTypes.name })
       .from(placeTypes)
       .orderBy(asc(placeTypes.sortOrder)),
+    listOrganizationTags(orgId),
   ]);
 
   const csvHref = `/api/orgs/${orgId}/report.csv?${new URLSearchParams({
     month: toMonthKey(parsedMonth.year, parsedMonth.month),
     ...(placeId ? { place: placeId } : {}),
     ...(placeTypeId ? { type: String(placeTypeId) } : {}),
+    ...(tagId ? { tag: tagId } : {}),
   }).toString()}`;
 
   return (
@@ -115,10 +120,12 @@ export default async function ReportsPage({
         months={recentMonthKeys(18, currentMonth(organization.timezone))}
         places={orgPlaces}
         types={types}
+        tags={orgTags}
         selected={{
           month: toMonthKey(parsedMonth.year, parsedMonth.month),
           place: placeId,
           type: placeTypeId,
+          tag: tagId,
         }}
       />
 

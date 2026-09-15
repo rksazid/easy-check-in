@@ -18,13 +18,20 @@ export function ReportFilters({
   months,
   places,
   types,
+  tags,
   selected,
 }: {
   organizationId: string;
   months: string[];
   places: { id: string; name: string }[];
   types: { id: number; name: string }[];
-  selected: { month: string; place: string | null; type: number | null };
+  tags: { id: string; name: string }[];
+  selected: {
+    month: string;
+    place: string | null;
+    type: number | null;
+    tag: string | null;
+  };
 }) {
   const router = useRouter();
 
@@ -33,6 +40,7 @@ export function ReportFilters({
     const params = new URLSearchParams({ month: next.month });
     if (next.place) params.set("place", next.place);
     if (next.type) params.set("type", String(next.type));
+    if (next.tag) params.set("tag", next.tag);
     router.push(`/admin/${organizationId}/reports?${params.toString()}`);
   }
 
@@ -86,6 +94,25 @@ export function ReportFilters({
           ))}
         </SelectContent>
       </Select>
+
+      {tags.length > 0 ? (
+        <Select
+          value={selected.tag ?? ANY}
+          onValueChange={(tag) => apply({ tag: tag === ANY ? null : tag })}
+        >
+          <SelectTrigger className="w-44" aria-label="Tag">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="max-h-72">
+            <SelectItem value={ANY}>All tags</SelectItem>
+            {tags.map((tag) => (
+              <SelectItem key={tag.id} value={tag.id}>
+                {tag.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
     </div>
   );
 }

@@ -133,11 +133,22 @@ bottom on a phone, and a row of links in the header from the `sm` breakpoint up.
 | `/orgs` | Invitations, the organizations you belong to, and ones you can join |
 | `/orgs/[id]` | An organization and the people in it |
 | `/orgs/[id]/places` | Places, plus adding one and (for admins) approving them |
-| `/admin/[id]` | Running an organization: requests, members, invitations, settings |
+| `/admin/[id]` | Running an organization: requests, members, tags, invitations, settings |
 | `/profile` | Name, username, avatar, and signing out |
 
 A visit is readable by the person who made it and by admins of its organization.
 Everyone else gets a 404, so an id gives nothing away.
+
+### Tags
+
+An organization can label its people with tags, usually the project or team they
+are on. Tags belong to one organization and are attached to the membership
+rather than the account, so the same person can be "Backend" in one organization
+and "Night shift" in another. Names are unique per organization without regard
+to case, so "Backend" and "backend" cannot both exist.
+
+Admins create and assign them on `/admin/[id]`, everyone sees them on
+`/orgs/[id]`, and monthly reports and the CSV can be narrowed to a single tag.
 
 ### Installing it as an app
 
