@@ -146,3 +146,51 @@ test("deleting a tag takes it off everyone", async ({ page }) => {
 
   await expect(page.getByText("Night shift")).toHaveCount(0);
 });
+
+test("a member sees their own tag without being an admin", async ({ page }) => {
+  // Alice is a plain member, so none of this is reachable through the admin UI.
+  await signIn(page, alice);
+
+  await page.getByRole("link", { name: "Organizations" }).click();
+  const orgRow = page.getByRole("listitem").filter({ hasText: "Iron Gym" });
+  await expect(orgRow.getByText("Project Apollo")).toBeVisible();
+
+  // Exact: the avatar beside it is labelled "Your profile".
+  await page.getByRole("link", { name: "You", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Where you belong" }),
+  ).toBeVisible();
+  await expect(page.getByText("Project Apollo")).toBeVisible();
+
+  // And on the organization itself, against her own name.
+  await page.goto(`/orgs/${orgId}`);
+  const aliceRow = page.getByRole("listitem").filter({ hasText: alice.name });
+  await expect(aliceRow.getByText("Project Apollo")).toBeVisible();
+
+  // A plain member gets no editing controls anywhere.
+  await expect(page.getByRole("button", { name: "Edit tags" })).toHaveCount(0);
+});
+
+test("someone with no tags is told so rather than shown an empty space", async ({
+  page,
+}) => {
+  await signIn(page, boss);
+  await page.goto("/profile");
+
+  await expect(
+    page.getByRole("heading", { name: "Where you belong" }),
+  ).toBeVisible();
+  // The boss was never tagged.
+  await expect(page.getByText("No tags here yet")).toBeVisible();
+});
+
+test("@screens capture the member view of tags", async ({ page }) => {
+  await signIn(page, alice);
+  await page.setViewportSize({ width: 420, height: 900 });
+
+  await page.goto("/orgs");
+  await page.screenshot({ path: "screenshots/06-orgs-with-tag.png" });
+
+  await page.goto("/profile");
+  await page.screenshot({ path: "screenshots/07-profile-tags.png" });
+});

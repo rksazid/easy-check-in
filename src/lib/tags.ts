@@ -75,3 +75,32 @@ export async function userIdsWithTag(
 
   return [...new Set(rows.map((row) => row.userId))];
 }
+
+/**
+ * The signed-in person's own tags in each organization they belong to, keyed by
+ * organization id. Lets their own lists show what they are labelled as without
+ * opening each organization in turn.
+ */
+export async function myTagsByOrganization(
+  userId: string,
+): Promise<Map<string, Tag[]>> {
+  const rows = await db
+    .select({
+      organizationId: member.organizationId,
+      id: tags.id,
+      name: tags.name,
+    })
+    .from(memberTags)
+    .innerJoin(member, eq(memberTags.memberId, member.id))
+    .innerJoin(tags, eq(memberTags.tagId, tags.id))
+    .where(eq(member.userId, userId))
+    .orderBy(asc(sql`lower(${tags.name})`));
+
+  const byOrganization = new Map<string, Tag[]>();
+  for (const row of rows) {
+    const list = byOrganization.get(row.organizationId) ?? [];
+    list.push({ id: row.id, name: row.name });
+    byOrganization.set(row.organizationId, list);
+  }
+  return byOrganization;
+}

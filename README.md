@@ -147,8 +147,10 @@ rather than the account, so the same person can be "Backend" in one organization
 and "Night shift" in another. Names are unique per organization without regard
 to case, so "Backend" and "backend" cannot both exist.
 
-Admins create and assign them on `/admin/[id]`, everyone sees them on
-`/orgs/[id]`, and monthly reports and the CSV can be narrowed to a single tag.
+Admins create and assign them on `/admin/[id]`. Everyone sees them without
+needing admin rights: your own tags sit beside each organization on `/orgs` and
+on `/profile`, and everybody's are listed against their name on `/orgs/[id]`.
+Monthly reports and the CSV can be narrowed to a single tag.
 
 ### Installing it as an app
 

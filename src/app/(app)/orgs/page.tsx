@@ -10,6 +10,7 @@ import { db } from "@/lib/db/client";
 import { joinRequests, organization } from "@/lib/db/schema";
 import { listMyInvitations } from "@/lib/invitations";
 import { listMyOrganizations } from "@/lib/org";
+import { myTagsByOrganization } from "@/lib/tags";
 import { requireSession } from "@/lib/session";
 
 export const metadata = { title: "Organizations" };
@@ -17,7 +18,7 @@ export const metadata = { title: "Organizations" };
 export default async function OrganizationsPage() {
   const session = await requireSession();
 
-  const [memberships, pendingRequests, invitations, joinable] =
+  const [memberships, pendingRequests, invitations, joinable, myTags] =
     await Promise.all([
       listMyOrganizations(session.user.id),
       db
@@ -37,6 +38,7 @@ export default async function OrganizationsPage() {
         .orderBy(desc(joinRequests.createdAt)),
       listMyInvitations(session.user.email),
       listJoinableOrganizations(),
+      myTagsByOrganization(session.user.id),
     ]);
 
   return (
@@ -91,13 +93,27 @@ export default async function OrganizationsPage() {
               >
                 <Link
                   href={`/orgs/${membership.organizationId}`}
-                  className="flex min-w-0 flex-1 items-center gap-2"
+                  className="min-w-0 flex-1 space-y-1"
                 >
-                  <span className="truncate font-medium underline-offset-4 hover:underline">
-                    {membership.name}
+                  <span className="flex items-center gap-2">
+                    <span className="truncate font-medium underline-offset-4 hover:underline">
+                      {membership.name}
+                    </span>
+                    {membership.isAdmin ? (
+                      <Badge variant="secondary">{membership.role}</Badge>
+                    ) : null}
                   </span>
-                  {membership.isAdmin ? (
-                    <Badge variant="secondary">{membership.role}</Badge>
+                  {/* What this organization labels you as. */}
+                  {(myTags.get(membership.organizationId) ?? []).length > 0 ? (
+                    <span className="flex flex-wrap gap-1">
+                      {(myTags.get(membership.organizationId) ?? []).map(
+                        (tag) => (
+                          <Badge key={tag.id} variant="outline">
+                            {tag.name}
+                          </Badge>
+                        ),
+                      )}
+                    </span>
                   ) : null}
                 </Link>
                 <span className="flex shrink-0 items-center gap-4">

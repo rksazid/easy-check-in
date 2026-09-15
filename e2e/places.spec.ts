@@ -7,7 +7,6 @@ import {
   promoteToSuperAdmin,
   resetDatabase,
   seedPlace,
-  searchNearbyPlaces,
   signIn,
   signOut,
   signUp,
@@ -172,7 +171,6 @@ test("a member's place waits for approval before anyone can check in to it", asy
   await context.setGeolocation(GYM);
   await page.goto("/");
   await acceptLocationConsent(page);
-  await searchNearbyPlaces(page);
   await expect(
     page.getByRole("heading", { name: "Riverside Branch" }),
   ).toBeVisible();
@@ -192,7 +190,6 @@ test("a member's place waits for approval before anyone can check in to it", asy
   await signIn(page, member);
   await page.goto("/");
   await acceptLocationConsent(page);
-  await searchNearbyPlaces(page);
   await expect(page.getByText("Members Annexe")).toBeVisible();
 });
 
@@ -221,7 +218,6 @@ test("a rejected place never becomes checkable", async ({ page }) => {
 
   await page.goto("/");
   await acceptLocationConsent(page);
-  await searchNearbyPlaces(page);
   await expect(
     page.getByRole("heading", { name: "Riverside Branch" }),
   ).toBeVisible();

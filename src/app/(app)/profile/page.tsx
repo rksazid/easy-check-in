@@ -1,13 +1,23 @@
+import Link from "next/link";
+
 import { AvatarSection } from "./avatar-section";
 import { ProfileForm } from "./profile-form";
 import { SignOutButton } from "@/components/sign-out-button";
+import { Badge } from "@/components/ui/badge";
+import { listMyOrganizations } from "@/lib/org";
 import { requireSession } from "@/lib/session";
+import { myTagsByOrganization } from "@/lib/tags";
 
 export const metadata = { title: "Your profile" };
 
 export default async function ProfilePage() {
   const session = await requireSession();
   const { user } = session;
+
+  const [memberships, myTags] = await Promise.all([
+    listMyOrganizations(user.id),
+    myTagsByOrganization(user.id),
+  ]);
 
   return (
     <div className="space-y-10">
@@ -24,6 +34,56 @@ export default async function ProfilePage() {
         image={user.image ?? null}
         avatarSource={user.avatarSource ?? "initials"}
       />
+
+      {memberships.length > 0 ? (
+        <>
+          <hr className="border-border/70" />
+
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold">Where you belong</h2>
+            <p className="text-muted-foreground text-sm">
+              Tags are set by the admins of each organization, and mean nothing
+              outside the one that gave them to you.
+            </p>
+            <ul className="divide-border/70 border-border/70 divide-y rounded-lg border">
+              {memberships.map((membership) => {
+                const tags = myTags.get(membership.organizationId) ?? [];
+
+                return (
+                  <li key={membership.organizationId} className="px-4 py-3">
+                    <Link
+                      href={`/orgs/${membership.organizationId}`}
+                      className="space-y-1"
+                    >
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium underline-offset-4 hover:underline">
+                          {membership.name}
+                        </span>
+                        {membership.isAdmin ? (
+                          <Badge variant="secondary">{membership.role}</Badge>
+                        ) : null}
+                      </span>
+                      {tags.length > 0 ? (
+                        <span className="flex flex-wrap gap-1">
+                          {tags.map((tag) => (
+                            <Badge key={tag.id} variant="outline">
+                              {tag.name}
+                            </Badge>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground block text-xs">
+                          No tags here yet
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        </>
+      ) : null}
 
       <hr className="border-border/70" />
 
