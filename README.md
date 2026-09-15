@@ -82,6 +82,13 @@ Run `npm run auth:generate` after changing the plugin list in `src/lib/auth.ts`,
 then `npm run db:generate && npm run db:migrate` to turn the regenerated schema
 into SQL.
 
+That command overwrites `src/lib/db/schema/auth.ts`, including the
+`member_one_per_user_per_org` unique index added to it by hand. Without that
+index a person can end up holding two memberships of one organization, because
+the plugin guards `addMember` against duplicates but not `acceptInvitation`.
+`e2e/constraints.spec.ts` fails if the index goes missing, so put it back and
+re-run the migration.
+
 ## Testing
 
 Unit tests (`npm test`) cover pure logic. Browser tests (`npm run test:e2e`) drive

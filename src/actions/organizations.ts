@@ -8,6 +8,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import {
+  invitation,
   joinRequests,
   member,
   organization,
@@ -218,7 +219,43 @@ export async function respondToInvitation(
   invitationId: string,
   accept: boolean,
 ): Promise<ActionResult> {
-  await requireSession();
+  const session = await requireSession();
+
+  if (accept) {
+    // The plugin guards addMember against duplicates but not acceptInvitation,
+    // so someone who both asked to join and was invited could end up with two
+    // membership rows. A unique index now makes that impossible; this check is
+    // what turns it into a sentence instead of a constraint violation.
+    const [invited] = await db
+      .select({ organizationId: invitation.organizationId })
+      .from(invitation)
+      .where(eq(invitation.id, invitationId))
+      .limit(1);
+
+    if (invited) {
+      const [already] = await db
+        .select({ role: member.role })
+        .from(member)
+        .where(
+          and(
+            eq(member.organizationId, invited.organizationId),
+            eq(member.userId, session.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (already) {
+        // Clear the stale invitation so it stops being offered.
+        await db
+          .update(invitation)
+          .set({ status: "accepted" })
+          .where(eq(invitation.id, invitationId));
+
+        revalidatePath("/orgs");
+        return { ok: true };
+      }
+    }
+  }
 
   try {
     if (accept) {

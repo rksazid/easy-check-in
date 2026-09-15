@@ -43,6 +43,13 @@
       "when": 1789235424773,
       "tag": "0005_parallel_energizer",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789470796323,
+      "tag": "0006_complete_clint_barton",
+      "breakpoints": true
     }
   ]
 }

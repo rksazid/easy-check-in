@@ -1,5 +1,12 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -107,6 +114,15 @@ export const member = pgTable(
   (table) => [
     index("member_organizationId_idx").on(table.organizationId),
     index("member_userId_idx").on(table.userId),
+    // KEEP THIS AFTER REGENERATING. The organization plugin guards addMember
+    // against duplicates but acceptInvitation does not, so somebody who both
+    // asked to join and was invited ended up with two membership rows and the
+    // organization listed twice. `member_one_per_user_per_org` in
+    // e2e/constraints.spec.ts fails if this is ever lost.
+    uniqueIndex("member_one_per_user_per_org").on(
+      table.organizationId,
+      table.userId,
+    ),
   ],
 );
 
