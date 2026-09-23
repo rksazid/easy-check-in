@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ReportFilters } from "./report-filters";
 import { sweepForgottenCheckIns } from "@/actions/check-in";
 import { Avatar } from "@/components/avatar";
+import { BarList } from "@/components/charts/bar-list";
+import { ColumnChart } from "@/components/charts/column-chart";
 import { LocalTime } from "@/components/local-time";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
@@ -16,12 +18,19 @@ import {
   getPlaceTotals,
 } from "@/lib/reports/attendance";
 import {
+  countPeopleSeen,
+  dailyTotals,
+  getInsights,
+} from "@/lib/reports/activity";
+import {
   currentMonth,
   formatMonthLabel,
+  monthWindow,
   parseMonthKey,
   recentMonthKeys,
   toMonthKey,
 } from "@/lib/reports/month-window";
+import { listOrganizationMembers } from "@/lib/visits";
 
 export async function generateMetadata({
   params,
@@ -68,7 +77,20 @@ export default async function ReportsPage({
     tagId,
   };
 
-  const [report, placeTotals, orgPlaces, types, orgTags] = await Promise.all([
+  const { startUtc, endUtc } = monthWindow(
+    parsedMonth.year,
+    parsedMonth.month,
+    organization.timezone,
+  );
+  const scope = {
+    organizationId: orgId,
+    placeId,
+    placeTypeId,
+    tagId,
+  };
+
+  const [report, placeTotals, orgPlaces, types, orgTags, days, members, seen] =
+    await Promise.all([
     getAttendanceReport(filters),
     getPlaceTotals(filters),
     db
@@ -80,8 +102,26 @@ export default async function ReportsPage({
       .select({ id: placeTypes.id, name: placeTypes.name })
       .from(placeTypes)
       .orderBy(asc(placeTypes.sortOrder)),
-    listOrganizationTags(orgId),
-  ]);
+      listOrganizationTags(orgId),
+      dailyTotals(scope, startUtc, endUtc, organization.timezone),
+      listOrganizationMembers(orgId),
+      countPeopleSeen(orgId, startUtc, endUtc),
+    ]);
+
+  const insights = await getInsights(
+    scope,
+    startUtc,
+    endUtc,
+    organization.timezone,
+    days,
+  );
+
+  const dayLabel = (day: string) =>
+    new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      timeZone: "UTC",
+    }).format(new Date(`${day}T00:00:00Z`));
 
   const csvHref = `/api/orgs/${orgId}/report.csv?${new URLSearchParams({
     month: toMonthKey(parsedMonth.year, parsedMonth.month),
@@ -108,11 +148,18 @@ export default async function ReportsPage({
             <span className="readout">{organization.timezone}</span>.
           </p>
         </div>
-        <Button asChild variant="outline">
-          <a href={csvHref} download>
-            Download CSV
-          </a>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/admin/${orgId}/check-ins?month=${toMonthKey(parsedMonth.year, parsedMonth.month)}`}>
+              Every check-in
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <a href={csvHref} download>
+              Download CSV
+            </a>
+          </Button>
+        </div>
       </div>
 
       <ReportFilters
@@ -134,6 +181,65 @@ export default async function ReportsPage({
         <Stat label="Visits" value={String(report.totals.visits)} />
         <Stat label="People" value={String(report.totals.people)} />
       </dl>
+
+      {report.totals.visits > 0 ? (
+        <>
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold">Time by day</h2>
+            <ColumnChart
+              points={days.map((day) => ({
+                key: day.day,
+                label: dayLabel(day.day).split(" ")[0],
+                value: day.seconds,
+                display: formatHours(day.seconds),
+                detail: `${day.visits} ${day.visits === 1 ? "visit" : "visits"} on ${dayLabel(day.day)}`,
+              }))}
+              caption={`Hours recorded each day, ${organization.timezone}`}
+            />
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold">What stands out</h2>
+            <ul className="text-muted-foreground space-y-1 text-sm">
+              {insights.busiestDay ? (
+                <li>
+                  Busiest day was{" "}
+                  <span className="text-foreground">
+                    {dayLabel(insights.busiestDay.day)}
+                  </span>
+                  , {formatHours(insights.busiestDay.seconds)} across{" "}
+                  {insights.busiestDay.visits}{" "}
+                  {insights.busiestDay.visits === 1 ? "visit" : "visits"}.
+                </li>
+              ) : null}
+              <li>
+                A typical visit ran{" "}
+                <span className="text-foreground">
+                  {formatHours(insights.averageVisitSeconds)}
+                </span>
+                , over {insights.activeDays}{" "}
+                {insights.activeDays === 1 ? "day" : "days"} with any activity.
+              </li>
+              {insights.commonestArrivalHour !== null ? (
+                <li>
+                  People most often arrive around{" "}
+                  <span className="text-foreground">
+                    {String(insights.commonestArrivalHour).padStart(2, "0")}:00
+                  </span>
+                  .
+                </li>
+              ) : null}
+              <li>
+                <span className="text-foreground">
+                  {seen} of {members.length}
+                </span>{" "}
+                {members.length === 1 ? "person" : "people"} checked in at least
+                once.
+              </li>
+            </ul>
+          </section>
+        </>
+      ) : null}
 
       {report.members.length === 0 ? (
         <p className="text-muted-foreground border-border/70 rounded-lg border border-dashed px-4 py-10 text-center text-sm">
@@ -195,24 +301,16 @@ export default async function ReportsPage({
       {placeTotals.length > 1 ? (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold">By place</h2>
-          <ul className="divide-border/70 border-border/70 divide-y rounded-lg border">
-            {placeTotals.map((place) => (
-              <li
-                key={place.placeId}
-                className="flex items-center justify-between gap-3 px-4 py-2 text-sm"
-              >
-                <span>
-                  {place.placeName}
-                  <span className="text-muted-foreground ml-2 text-xs">
-                    {place.typeName}
-                  </span>
-                </span>
-                <span className="readout">
-                  {formatHours(place.seconds)} over {place.visits} visits
-                </span>
-              </li>
-            ))}
-          </ul>
+          <BarList
+            caption="Total time recorded at each place this month"
+            items={placeTotals.map((place) => ({
+              key: place.placeId,
+              label: place.placeName,
+              sublabel: place.typeName,
+              value: place.seconds,
+              display: `${formatHours(place.seconds)}, ${place.visits} ${place.visits === 1 ? "visit" : "visits"}`,
+            }))}
+          />
         </section>
       ) : null}
     </div>

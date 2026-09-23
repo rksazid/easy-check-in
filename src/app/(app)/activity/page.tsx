@@ -2,10 +2,13 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import { sweepForgottenCheckIns } from "@/actions/check-in";
+import { BarList } from "@/components/charts/bar-list";
+import { ColumnChart } from "@/components/charts/column-chart";
 import { Elapsed } from "@/components/elapsed";
 import { LocalTime } from "@/components/local-time";
 import { Badge } from "@/components/ui/badge";
 import { formatHours } from "@/lib/reports/attendance";
+import { dailyTotals, getInsights } from "@/lib/reports/activity";
 import {
   currentMonth,
   formatMonthLabel,
@@ -33,13 +36,29 @@ export default async function ActivityPage() {
   // The viewer's own calendar month. Organization reports use the organization's
   // zone instead, so the two can differ by a few hours at the edges.
   const { year, month } = currentMonth();
-  const { startUtc } = monthWindow(year, month, "UTC");
+  const { startUtc, endUtc } = monthWindow(year, month, "UTC");
 
-  const [stats, breakdown, visits] = await Promise.all([
+  const [stats, breakdown, visits, days] = await Promise.all([
     getMyStatsSince(startUtc),
     getMyPlaceBreakdown(startUtc),
     listMyVisits(50),
+    dailyTotals({ userId: session.user.id }, startUtc, endUtc, "UTC"),
   ]);
+
+  const insights = await getInsights(
+    { userId: session.user.id },
+    startUtc,
+    endUtc,
+    "UTC",
+    days,
+  );
+
+  const dayLabel = (day: string) =>
+    new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      timeZone: "UTC",
+    }).format(new Date(`${day}T00:00:00Z`));
 
   const firstName = session.user.name.split(" ")[0];
   const busiest = breakdown[0];
@@ -67,40 +86,48 @@ export default async function ActivityPage() {
           Most of it at <span className="text-foreground">{busiest.placeName}</span>
           , {formatHours(busiest.seconds)} across{" "}
           {busiest.visits === 1 ? "one visit" : `${busiest.visits} visits`}.
+          {insights.commonestArrivalHour !== null ? (
+            <>
+              {" "}
+              You usually arrive around{" "}
+              <span className="text-foreground">
+                {String(insights.commonestArrivalHour).padStart(2, "0")}:00
+              </span>
+              .
+            </>
+          ) : null}
         </p>
+      ) : null}
+
+      {stats.visits > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold">Time by day</h2>
+          <ColumnChart
+            points={days.map((day) => ({
+              key: day.day,
+              label: dayLabel(day.day).split(" ")[0],
+              value: day.seconds,
+              display: formatHours(day.seconds),
+              detail: `${day.visits} ${day.visits === 1 ? "visit" : "visits"} on ${dayLabel(day.day)}`,
+            }))}
+            caption="Hours you recorded each day this month"
+          />
+        </section>
       ) : null}
 
       {breakdown.length > 1 ? (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold">Where your time went</h2>
-          <ul className="space-y-2">
-            {breakdown.map((place) => {
-              const share = stats.seconds
-                ? Math.round((place.seconds / stats.seconds) * 100)
-                : 0;
-
-              return (
-                <li key={place.placeId} className="space-y-1">
-                  <div className="flex items-baseline justify-between gap-3 text-sm">
-                    <span className="min-w-0 truncate">{place.placeName}</span>
-                    <span className="readout text-muted-foreground shrink-0">
-                      {formatHours(place.seconds)}
-                    </span>
-                  </div>
-                  {/* A plain proportion bar; the number beside it is the fact. */}
-                  <div
-                    className="bg-muted h-1.5 overflow-hidden rounded-full"
-                    role="presentation"
-                  >
-                    <div
-                      className="bg-signal h-full rounded-full"
-                      style={{ width: `${Math.max(share, 2)}%` }}
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <BarList
+            caption="Your time at each place this month"
+            items={breakdown.map((place) => ({
+              key: place.placeId,
+              label: place.placeName,
+              sublabel: place.typeName,
+              value: place.seconds,
+              display: formatHours(place.seconds),
+            }))}
+          />
         </section>
       ) : null}
 

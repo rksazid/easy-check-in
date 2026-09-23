@@ -134,10 +134,27 @@ bottom on a phone, and a row of links in the header from the `sm` breakpoint up.
 | `/orgs/[id]` | An organization and the people in it |
 | `/orgs/[id]/places` | Places, plus adding one and (for admins) approving them |
 | `/admin/[id]` | Running an organization: requests, members, tags, invitations, settings |
+| `/admin/[id]/check-ins` | Every visit in the organization, filterable, each opening its own page |
+| `/admin/[id]/reports` | Monthly totals, a chart of time by day, and CSV export |
 | `/profile` | Name, username, avatar, and signing out |
 
 A visit is readable by the person who made it and by admins of its organization.
 Everyone else gets a 404, so an id gives nothing away.
+
+### Charts
+
+Charts are hand-built from flex boxes and design tokens rather than a charting
+library, which keeps them server-rendered and free of another dependency.
+
+Two rules are worth knowing before adding one. Chart marks use `--chart-mark`,
+a darker step than the UI accent: the accent is tuned to sit behind dark text
+and falls below 3:1 contrast when used as a fill. Both steps were checked with a
+contrast and colour-blindness validator rather than picked by eye, and the dark
+mode value is its own choice, not a lightened flip.
+
+Every chart here plots one series, so none of them carries a legend; the caption
+names what is plotted. A second colour would be encoding something the bar
+heights already say.
 
 ### Tags
 

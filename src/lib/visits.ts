@@ -1,4 +1,16 @@
-import { and, asc, count, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  sql,
+} from "drizzle-orm";
 import { notFound } from "next/navigation";
 
 import { db } from "@/lib/db/client";
@@ -286,5 +298,107 @@ export async function getOrganizationSummary(organizationId: string) {
     openPlaces: Number(placeCounts?.open ?? 0),
     hereNow: Number(visitCounts?.hereNow ?? 0),
     visitsThisWeek: Number(visitCounts?.visitsThisWeek ?? 0),
+  };
+}
+
+export type OrgCheckInFilters = {
+  organizationId: string;
+  startUtc: Date;
+  endUtc: Date;
+  placeId?: string | null;
+  userId?: string | null;
+  tagId?: string | null;
+  /** "open" narrows to visits still running, otherwise a checkout reason. */
+  ending?: string | null;
+  limit?: number;
+  offset?: number;
+};
+
+export type OrgCheckInRow = {
+  id: string;
+  userId: string;
+  personName: string;
+  personImage: string | null;
+  placeName: string;
+  typeName: string;
+  checkedInAt: Date;
+  checkedOutAt: Date | null;
+  checkoutReason: string | null;
+  seconds: number | null;
+  captures: number;
+};
+
+/**
+ * Every visit in an organization, newest first, for an admin to read through.
+ * The report page answers "how much"; this answers "what exactly happened".
+ */
+export async function listOrganizationCheckIns(
+  filters: OrgCheckInFilters,
+): Promise<{ rows: OrgCheckInRow[]; total: number }> {
+  const { userIdsWithTag } = await import("@/lib/tags");
+
+  const conditions = [
+    eq(checkIns.organizationId, filters.organizationId),
+    // A visit counts for a window if any part of it falls inside.
+    lt(checkIns.checkedInAt, filters.endUtc),
+    sql`COALESCE(${checkIns.checkedOutAt}, now()) > ${filters.startUtc.toISOString()}::timestamptz`,
+  ];
+
+  if (filters.placeId) conditions.push(eq(checkIns.placeId, filters.placeId));
+  if (filters.userId) conditions.push(eq(checkIns.userId, filters.userId));
+
+  if (filters.ending === "open") {
+    conditions.push(isNull(checkIns.checkedOutAt));
+  } else if (filters.ending) {
+    conditions.push(eq(checkIns.checkoutReason, filters.ending));
+  }
+
+  if (filters.tagId) {
+    const userIds = await userIdsWithTag(filters.organizationId, filters.tagId);
+    conditions.push(
+      userIds.length ? inArray(checkIns.userId, userIds) : sql`false`,
+    );
+  }
+
+  const where = and(...conditions);
+
+  const [counted] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(checkIns)
+    .where(where);
+
+  const rows = await db
+    .select({
+      id: checkIns.id,
+      userId: checkIns.userId,
+      personName: user.name,
+      personImage: user.image,
+      placeName: places.name,
+      typeName: placeTypes.name,
+      checkedInAt: checkIns.checkedInAt,
+      checkedOutAt: checkIns.checkedOutAt,
+      checkoutReason: checkIns.checkoutReason,
+      seconds: durationSeconds,
+      captures: sql<number>`(
+        SELECT count(*)::int FROM location_captures lc
+         WHERE lc.check_in_id = ${checkIns.id}
+      )`,
+    })
+    .from(checkIns)
+    .innerJoin(places, eq(checkIns.placeId, places.id))
+    .innerJoin(placeTypes, eq(places.placeTypeId, placeTypes.id))
+    .innerJoin(user, eq(checkIns.userId, user.id))
+    .where(where)
+    .orderBy(desc(checkIns.checkedInAt))
+    .limit(filters.limit ?? 50)
+    .offset(filters.offset ?? 0);
+
+  return {
+    total: Number(counted?.total ?? 0),
+    rows: rows.map((row) => ({
+      ...row,
+      seconds: row.seconds === null ? null : Number(row.seconds),
+      captures: Number(row.captures),
+    })),
   };
 }

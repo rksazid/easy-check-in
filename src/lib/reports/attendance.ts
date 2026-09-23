@@ -7,6 +7,7 @@ import {
   placeTypes,
   user as userTable,
 } from "@/lib/db/schema";
+export { formatHours } from "@/lib/format";
 import { userIdsWithTag } from "@/lib/tags";
 import { monthWindow, type MonthWindow } from "./month-window";
 
@@ -167,9 +168,4 @@ export async function getPlaceTotals(filters: AttendanceFilters) {
   return rows.map((row) => ({ ...row, seconds: Number(row.seconds) }));
 }
 
-export function formatHours(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.round((seconds % 3600) / 60);
-  if (hours === 0) return `${minutes}m`;
-  return `${hours}h ${String(minutes).padStart(2, "0")}m`;
-}
+

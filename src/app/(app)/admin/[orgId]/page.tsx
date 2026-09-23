@@ -125,6 +125,9 @@ export default async function OrgAdminPage({
             <Link href={`/orgs/${orgId}/places`}>Places</Link>
           </Button>
           <Button asChild variant="outline">
+            <Link href={`/admin/${orgId}/check-ins`}>Check-ins</Link>
+          </Button>
+          <Button asChild variant="outline">
             <Link href={`/admin/${orgId}/reports`}>Reports</Link>
           </Button>
         </div>

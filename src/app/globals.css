@@ -12,6 +12,8 @@
     --color-signal-foreground: var(--signal-foreground);
     --color-caution: var(--caution);
     --color-caution-foreground: var(--caution-foreground);
+    --color-chart-mark: var(--chart-mark);
+    --color-chart-grid: var(--chart-grid);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -54,7 +56,7 @@
 
 /*
  * Palette is anchored on sea-ink and cool paper. `signal` is reserved for one
- * meaning only — "you are inside the geofence / a session is running" — so the
+ * meaning only, "you are inside the geofence or a session is running", so the
  * colour itself carries state and never appears as decoration.
  */
 :root {
@@ -78,6 +80,14 @@
     --ring: oklch(0.735 0.1287 176);
     --signal: oklch(0.735 0.1287 176);
     --signal-foreground: oklch(0.204 0.0287 213);
+    /*
+     * Chart marks are a darker step than the UI accent. The accent is tuned to
+     * sit behind dark text; as a fill it falls under 3:1 against the page. These
+     * two were checked with the palette validator rather than picked by eye, and
+     * the dark step is its own choice, not a flip of the light one.
+     */
+    --chart-mark: #0f8a76;
+    --chart-grid: oklch(0.899 0.0071 186);
     --caution: oklch(0.771 0.1448 71);
     --caution-foreground: oklch(0.243 0.0243 213);
     --chart-1: oklch(0.735 0.1287 176);
@@ -117,6 +127,8 @@
     --ring: oklch(0.735 0.1287 176);
     --signal: oklch(0.782 0.1352 176);
     --signal-foreground: oklch(0.194 0.0223 213);
+    --chart-mark: #1aab90;
+    --chart-grid: oklch(1 0 0 / 14%);
     --caution: oklch(0.804 0.1448 71);
     --caution-foreground: oklch(0.194 0.0223 213);
     --chart-1: oklch(0.782 0.1352 176);
@@ -144,7 +156,7 @@
   html {
     @apply font-sans;
     }
-  /* Sensor readings — coordinates, distances, durations — are instrument data. */
+  /* Sensor readings: coordinates, distances and durations are instrument data. */
   .readout {
     @apply font-mono tabular-nums tracking-tight;
     }
