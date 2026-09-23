@@ -44,6 +44,17 @@ export const organizationSettings = pgTable("organization_settings", {
   forgotCheckoutHours: integer("forgot_checkout_hours")
     .notNull()
     .default(DEFAULT_FORGOT_CHECKOUT_HOURS),
+  /**
+   * A Slack Incoming Webhook, pasted in by an admin. Treated as a secret: it is
+   * never sent back to the browser in full, only ever masked.
+   *
+   * A webhook rather than a Slack app because it needs no OAuth, no token to
+   * rotate, no app review, and each organization points at its own channel
+   * without anything shared between them.
+   */
+  slackWebhookUrl: text("slack_webhook_url"),
+  /** Post when somebody is waiting on an admin, as well as the daily digest. */
+  slackNotifyEvents: boolean("slack_notify_events").notNull().default(true),
 });
 
 export const JOIN_REQUEST_STATUSES = ["pending", "approved", "rejected"] as const;

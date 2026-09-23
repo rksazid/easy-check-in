@@ -53,7 +53,7 @@ export function RingButton({
       />
       <span className="flex flex-col items-center gap-1 px-6 text-center">
         <span className="text-2xl font-semibold tracking-tight">
-          {pending ? "Working…" : label}
+          {pending ? "Working" : label}
         </span>
         {sublabel ? (
           <span className="text-sm opacity-80">{sublabel}</span>

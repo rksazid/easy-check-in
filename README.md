@@ -31,6 +31,10 @@ BETTER_AUTH_SECRET="<paste a long random string>"
 
 # The app's public origin. Locally this is http://localhost:3000.
 BETTER_AUTH_URL="http://localhost:3000"
+
+# Optional. Needed only for the daily Slack digest route.
+# Generate with: openssl rand -base64 32
+CRON_SECRET=""
 ```
 
 Create the database and apply the schema:
@@ -155,6 +159,51 @@ mode value is its own choice, not a lightened flip.
 Every chart here plots one series, so none of them carries a legend; the caption
 names what is plotted. A second colour would be encoding something the bar
 heights already say.
+
+### Slack
+
+Each organization posts to its own channel through a Slack Incoming Webhook that
+an admin pastes into `/admin/[id]`. A webhook rather than a Slack app: no OAuth,
+no token to rotate, no app review, and nothing shared between organizations.
+
+What the customer's Slack admin does, once:
+
+1. api.slack.com/apps, Create New App, From scratch, pick the workspace.
+2. Incoming Webhooks, turn it on.
+3. Add New Webhook to Workspace, choose the channel, authorize.
+4. Paste the address into Easy Check-In.
+
+The app posts a message the moment it is saved, so a typo is caught there rather
+than silently swallowing every message afterwards. The address is a secret: it is
+stored whole but only ever shown masked, and only addresses on
+`https://hooks.slack.com/` are accepted, because the server is the one making
+the request and anything else would let an admin aim it at an internal host.
+
+Two kinds of message: a nudge when somebody is waiting on an admin (a request to
+join, a place added for approval), and a daily digest of the previous day.
+
+The digest lives at `/api/cron/slack-digest` and needs `CRON_SECRET` set; it
+compares the bearer token in constant time and 401s otherwise. `vercel.json`
+schedules it daily, which is also the most Vercel's Hobby plan allows. Any
+external scheduler can call the same route with the same header. Quiet days are
+skipped, because a digest that says "nothing happened" every morning teaches
+people to ignore the channel.
+
+### Connectivity
+
+`experimental.useOffline` is on. A Server Action fired with no connection stays
+pending and runs when the network returns, instead of throwing, and an
+`OfflineBanner` says so. That covers the case this app actually hits: a tap on
+the check-in button in a basement gym.
+
+It is in-memory and lives only as long as the page, which is what we want. A
+check-in queued to disk could surface hours later and record a visit that started
+long before it was accepted, and the server cannot tell a stale GPS fix from a
+live one. For the same reason there is no offline queue and the service worker
+still caches nothing.
+
+Note this does not cover a cold launch with no connection; that would need a
+precached shell, which is a separate decision.
 
 ### Tags
 

@@ -23,3 +23,8 @@ export const env = {
     return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
   },
 };
+
+/** Absolute origin, for links in messages that leave the app (Slack, email). */
+export function appUrl() {
+  return env.BETTER_AUTH_URL.replace(/\/$/, "");
+}

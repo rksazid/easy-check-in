@@ -32,6 +32,7 @@ export default defineConfig({
       BETTER_AUTH_URL: baseURL,
       // The suite authenticates far faster than a human ever would.
       AUTH_DISABLE_RATE_LIMIT: "1",
+      CRON_SECRET: "e2e-cron-secret",
     },
   },
 });

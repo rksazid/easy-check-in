@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   monthWindow,
   parseMonthKey,
+  previousDayWindow,
   recentMonthKeys,
   formatMonthLabel,
 } from "./month-window";
@@ -92,5 +93,57 @@ describe("recentMonthKeys", () => {
 describe("formatMonthLabel", () => {
   it("renders a readable month", () => {
     expect(formatMonthLabel("2026-03")).toBe("March 2026");
+  });
+});
+
+describe("previousDayWindow", () => {
+  it("covers exactly the local day that just finished", () => {
+    // 10:00 UTC on 16 September, so yesterday is the 15th.
+    const window = previousDayWindow("UTC", new Date("2026-09-16T10:00:00Z"));
+    expect(iso(window.startUtc)).toBe("2026-09-15T00:00:00.000Z");
+    expect(iso(window.endUtc)).toBe("2026-09-16T00:00:00.000Z");
+    expect(window.day).toBe("2026-09-15");
+  });
+
+  it("uses the organization's day, not UTC's", () => {
+    // 02:00 UTC is still the previous evening in New York, so "yesterday"
+    // there is a day earlier than a naive UTC reading would give.
+    const window = previousDayWindow(
+      "America/New_York",
+      new Date("2026-09-16T02:00:00Z"),
+    );
+    expect(window.day).toBe("2026-09-14");
+    expect(iso(window.startUtc)).toBe("2026-09-14T04:00:00.000Z");
+    expect(iso(window.endUtc)).toBe("2026-09-15T04:00:00.000Z");
+  });
+
+  it("steps back across a month boundary", () => {
+    const window = previousDayWindow("UTC", new Date("2026-03-01T09:00:00Z"));
+    expect(window.day).toBe("2026-02-28");
+  });
+
+  it("steps back across a year boundary", () => {
+    const window = previousDayWindow("UTC", new Date("2027-01-01T09:00:00Z"));
+    expect(window.day).toBe("2026-12-31");
+  });
+
+  it("spans 25 hours on the day the clocks go back", () => {
+    // London leaves summer time on 25 October 2026.
+    const window = previousDayWindow(
+      "Europe/London",
+      new Date("2026-10-26T09:00:00Z"),
+    );
+    const hours =
+      (window.endUtc.getTime() - window.startUtc.getTime()) / 3_600_000;
+    expect(window.day).toBe("2026-10-25");
+    expect(hours).toBe(25);
+  });
+
+  it("falls back to UTC for an unknown zone", () => {
+    const window = previousDayWindow(
+      "Mars/Olympus_Mons",
+      new Date("2026-09-16T10:00:00Z"),
+    );
+    expect(window.day).toBe("2026-09-15");
   });
 });

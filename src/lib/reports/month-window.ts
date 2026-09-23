@@ -47,9 +47,14 @@ function isKnownZone(timeZone: string) {
   }
 }
 
-/** The UTC instant at which local midnight of `year-month-01` occurs. */
-function zonedMonthStart(year: number, month: number, timeZone: string): Date {
-  const wallClock = Date.UTC(year, month - 1, 1, 0, 0, 0);
+/** The UTC instant at which local midnight of a given calendar day occurs. */
+function zonedDayStart(
+  year: number,
+  month: number,
+  day: number,
+  timeZone: string,
+): Date {
+  const wallClock = Date.UTC(year, month - 1, day, 0, 0, 0);
 
   // First guess uses the offset at the naive instant; the second corrects it
   // when that guess landed on the other side of a DST change.
@@ -57,6 +62,54 @@ function zonedMonthStart(year: number, month: number, timeZone: string): Date {
   instant = wallClock - offsetMs(timeZone, new Date(instant));
 
   return new Date(instant);
+}
+
+const zonedMonthStart = (year: number, month: number, timeZone: string) =>
+  zonedDayStart(year, month, 1, timeZone);
+
+export type DayWindow = { startUtc: Date; endUtc: Date; day: string };
+
+/**
+ * The UTC interval covering the local calendar day that has just finished,
+ * which is what a morning digest reports on. Built from the same two-pass
+ * conversion as the month boundaries, so it survives DST the same way.
+ */
+export function previousDayWindow(
+  timeZone: string,
+  now = new Date(),
+): DayWindow {
+  const zone = isKnownZone(timeZone) ? timeZone : "UTC";
+
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: zone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+
+  const [year, month, day] = today.split("-").map(Number);
+  const endUtc = zonedDayStart(year, month, day, zone);
+
+  // Step back a calendar day through UTC arithmetic, then re-derive the local
+  // date, so month and year boundaries take care of themselves.
+  const previous = new Date(Date.UTC(year, month - 1, day - 1));
+  const startUtc = zonedDayStart(
+    previous.getUTCFullYear(),
+    previous.getUTCMonth() + 1,
+    previous.getUTCDate(),
+    zone,
+  );
+
+  return {
+    startUtc,
+    endUtc,
+    day: new Intl.DateTimeFormat("en-CA", {
+      timeZone: zone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(startUtc),
+  };
 }
 
 /**

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Avatar } from "@/components/avatar";
 import { AppNav } from "@/components/app-nav";
 import { BrandLockup } from "@/components/brand";
+import { OfflineBanner } from "@/components/offline-banner";
 import { isSuperAdmin, requireSession } from "@/lib/session";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -16,6 +17,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         pinned the phone tab bar to the top of the header instead of the
         bottom of the screen.
       */}
+      <OfflineBanner />
+
       <header className="border-border/70 bg-background sticky top-0 z-30 border-b">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-4 py-2.5">
           <Link href="/" className="inline-flex rounded-md outline-offset-4">

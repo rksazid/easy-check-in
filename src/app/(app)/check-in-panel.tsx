@@ -1,5 +1,6 @@
 "use client";
 
+import { useOffline } from "next/offline";
 import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -67,6 +68,7 @@ export function CheckInPanel({
 
 function CheckedIn({ active }: { active: ActiveCheckIn }) {
   const [pending, startTransition] = useTransition();
+  const offline = useOffline();
 
   function finish() {
     startTransition(async () => {
@@ -121,6 +123,7 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
 
       <RingButton
         label="Check out"
+        sublabel={pending && offline ? "Waiting for a connection" : undefined}
         tone="stop"
         pending={pending}
         onClick={finish}
@@ -152,6 +155,7 @@ function NotCheckedIn() {
   const [places, setPlaces] = useState<NearbyPlace[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const offline = useOffline();
 
   const look = useCallback(() => {
     setError(null);
@@ -192,7 +196,13 @@ function NotCheckedIn() {
         <>
           <RingButton
             label="Check in"
-            sublabel={pending ? undefined : "Find places near me"}
+            sublabel={
+              pending
+                ? offline
+                  ? "Waiting for a connection"
+                  : undefined
+                : "Find places near me"
+            }
             pending={pending}
             onClick={look}
           />
@@ -217,7 +227,13 @@ function NotCheckedIn() {
 
           <RingButton
             label="Check in"
-            sublabel={nearest.canCheckIn ? undefined : "Too far away"}
+            sublabel={
+              pending && offline
+                ? "Waiting for a connection"
+                : nearest.canCheckIn
+                  ? undefined
+                  : "Too far away"
+            }
             disabled={!nearest.canCheckIn}
             pending={pending}
             onClick={() => enter(nearest)}

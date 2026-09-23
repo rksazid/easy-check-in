@@ -12,6 +12,8 @@ import {
   placeTypes,
 } from "@/lib/db/schema";
 import { requireMembership, requireOrgAdmin } from "@/lib/org";
+import { notifyPlaceProposed } from "@/lib/slack/notify";
+import { appUrl } from "@/lib/env";
 
 export type ActionResult =
   | { ok: true; placeId?: string; status?: string }
@@ -85,6 +87,15 @@ export async function createPlace(
       ...parsed.data,
     })
     .returning({ id: places.id, status: places.status });
+
+  if (created.status === "pending") {
+    await notifyPlaceProposed({
+      organizationId,
+      personName: session.user.name,
+      placeName: parsed.data.name,
+      appUrl: `${appUrl()}/orgs/${organizationId}/places`,
+    });
+  }
 
   revalidatePlaces(organizationId);
   return { ok: true, placeId: created.id, status: created.status };

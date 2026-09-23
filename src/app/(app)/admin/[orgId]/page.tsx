@@ -5,6 +5,7 @@ import { AdminCheckOutButton } from "./admin-check-out-button";
 import { InviteMember } from "./invite-member";
 import { MemberTagPicker } from "./member-tag-picker";
 import { JoinRequestActions, MemberActions } from "./member-actions";
+import { SlackSettings } from "./slack-settings";
 import { TagManager } from "./tag-manager";
 import { TimezoneForm } from "./timezone-form";
 import { sweepForgottenCheckIns } from "@/actions/check-in";
@@ -24,6 +25,8 @@ import {
 } from "@/lib/db/schema";
 import { isOrgAdminRole, requireOrgAdmin } from "@/lib/org";
 import { countTagUse, listOrganizationTags, tagsByMember } from "@/lib/tags";
+import { maskWebhookUrl } from "@/lib/slack/post";
+import { organizationSettings } from "@/lib/db/schema";
 
 export async function generateMetadata({
   params,
@@ -42,8 +45,16 @@ export default async function OrgAdminPage({
   // Closes anything left open past the cap before the admin looks at the list.
   await sweepForgottenCheckIns();
 
-  const [members, requests, pendingInvitations, openVisits, orgTags, tagUse, memberTagMap] =
-    await Promise.all([
+  const [
+    members,
+    requests,
+    pendingInvitations,
+    openVisits,
+    orgTags,
+    tagUse,
+    memberTagMap,
+    settingsRows,
+  ] = await Promise.all([
     db
       .select({
         memberId: member.id,
@@ -107,7 +118,17 @@ export default async function OrgAdminPage({
       listOrganizationTags(orgId),
       countTagUse(orgId),
       tagsByMember(orgId),
+      db
+        .select({
+          slackWebhookUrl: organizationSettings.slackWebhookUrl,
+          slackNotifyEvents: organizationSettings.slackNotifyEvents,
+        })
+        .from(organizationSettings)
+        .where(eq(organizationSettings.organizationId, orgId))
+        .limit(1),
     ]);
+
+  const slack = settingsRows[0];
 
   return (
     <div className="space-y-10">
@@ -259,6 +280,23 @@ export default async function OrgAdminPage({
             </ul>
           </div>
         ) : null}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold">Slack</h2>
+        <p className="text-muted-foreground max-w-prose text-sm">
+          Send a daily summary, and a nudge when something needs an admin, to a
+          channel of your choice.
+        </p>
+        <SlackSettings
+          organizationId={orgId}
+          connected={
+            slack?.slackWebhookUrl
+              ? maskWebhookUrl(slack.slackWebhookUrl)
+              : null
+          }
+          notifyEvents={slack?.slackNotifyEvents ?? true}
+        />
       </section>
 
       <section className="space-y-3">

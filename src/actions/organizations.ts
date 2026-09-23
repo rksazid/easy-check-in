@@ -17,6 +17,8 @@ import {
 } from "@/lib/db/schema";
 import { requireOrgAdmin } from "@/lib/org";
 import { requireSession, requireSuperAdmin } from "@/lib/session";
+import { notifyJoinRequest } from "@/lib/slack/notify";
+import { appUrl } from "@/lib/env";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -181,16 +183,26 @@ export async function requestToJoin(
     return { ok: false, error: "You are already in this organization." };
   }
 
+  const note = message.trim().slice(0, 280) || null;
+
   try {
     await db.insert(joinRequests).values({
       organizationId,
       userId: session.user.id,
-      message: message.trim().slice(0, 280) || null,
+      message: note,
     });
   } catch {
     // The partial unique index is what rejects a second pending request.
     return { ok: false, error: "You have already asked to join this one." };
   }
+
+  // After the write, and never allowed to fail it.
+  await notifyJoinRequest({
+    organizationId,
+    personName: session.user.name,
+    note,
+    appUrl: `${appUrl()}/admin/${organizationId}`,
+  });
 
   revalidatePath("/orgs");
   return { ok: true };
