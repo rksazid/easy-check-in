@@ -55,6 +55,8 @@ export const organizationSettings = pgTable("organization_settings", {
   slackWebhookUrl: text("slack_webhook_url"),
   /** Post when somebody is waiting on an admin, as well as the daily digest. */
   slackNotifyEvents: boolean("slack_notify_events").notNull().default(true),
+  /** Whether members can manually check in without GPS proximity. */
+  allowManualCheckIn: boolean("allow_manual_check_in").notNull().default(false),
 });
 
 export const JOIN_REQUEST_STATUSES = ["pending", "approved", "rejected"] as const;
@@ -202,6 +204,15 @@ export const checkIns = pgTable(
     checkedInAt: utcTimestamp("checked_in_at").notNull().defaultNow(),
     checkedOutAt: utcTimestamp("checked_out_at"),
     checkoutReason: text("checkout_reason"),
+    /** Whether this check-in was entered manually without GPS fix. */
+    isManual: boolean("is_manual").notNull().default(false),
+    /** Admins can reject invalid/fraudulent manual check-ins. */
+    status: text("status").notNull().default("approved"),
+    rejectedBy: text("rejected_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    rejectedAt: utcTimestamp("rejected_at"),
+    rejectionReason: text("rejection_reason"),
   },
   (table) => [
     uniqueIndex("check_ins_one_open_per_user")
@@ -221,6 +232,10 @@ export const checkIns = pgTable(
       "check_ins_reason_check",
       sql`${table.checkoutReason} IS NULL
           OR ${table.checkoutReason} IN ('manual', 'auto_forgot', 'admin')`,
+    ),
+    check(
+      "check_ins_status_check",
+      sql`${table.status} IN ('approved', 'rejected')`,
     ),
   ],
 );

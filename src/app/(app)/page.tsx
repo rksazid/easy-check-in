@@ -1,11 +1,16 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Hand } from "lucide-react";
 import Link from "next/link";
 
 import { CheckInPanel } from "./check-in-panel";
-import { getActiveCheckIn, sweepForgottenCheckIns } from "@/actions/check-in";
+import {
+  getActiveCheckIn,
+  getManualCheckInPlaces,
+  sweepForgottenCheckIns,
+} from "@/actions/check-in";
 import { Elapsed } from "@/components/elapsed";
 import { InstallHint } from "@/components/install-hint";
 import { LocalTime } from "@/components/local-time";
+import { Badge } from "@/components/ui/badge";
 import { hasLocationConsent } from "@/lib/consent";
 import { listMyOrganizations } from "@/lib/org";
 import { requireSession } from "@/lib/session";
@@ -20,12 +25,14 @@ export default async function CheckInPage() {
   // alongside the queries would let them read a visit it is about to close.
   await sweepForgottenCheckIns();
 
-  const [active, memberships, visits, consented] = await Promise.all([
-    getActiveCheckIn(),
-    listMyOrganizations(session.user.id),
-    listMyVisits(3),
-    hasLocationConsent(),
-  ]);
+  const [active, memberships, visits, consented, manualPlaces] =
+    await Promise.all([
+      getActiveCheckIn(),
+      listMyOrganizations(session.user.id),
+      listMyVisits(3),
+      hasLocationConsent(),
+      getManualCheckInPlaces(),
+    ]);
 
   if (memberships.length === 0) {
     return (
@@ -51,7 +58,11 @@ export default async function CheckInPage() {
 
   return (
     <div className="space-y-10">
-      <CheckInPanel active={active} consented={consented} />
+      <CheckInPanel
+        active={active}
+        consented={consented}
+        manualPlaces={manualPlaces}
+      />
 
       <InstallHint />
 
@@ -73,11 +84,30 @@ export default async function CheckInPage() {
                   href={`/visits/${visit.id}`}
                   className="hover:bg-accent/50 flex min-h-14 items-center gap-3 px-4 py-3 transition-colors"
                 >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">
-                      {visit.placeName}
+                  <span className="min-w-0 flex-1 space-y-0.5">
+                    <span className="flex items-center gap-1.5 flex-wrap">
+                      <span className="truncate font-medium">
+                        {visit.placeName}
+                      </span>
+                      {visit.isManual ? (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 gap-1 text-[10px] font-medium py-0 px-1.5"
+                        >
+                          <Hand className="size-2.5 text-amber-500" />
+                          Manual
+                        </Badge>
+                      ) : null}
+                      {visit.status === "rejected" ? (
+                        <Badge
+                          variant="destructive"
+                          className="text-[10px] py-0 px-1.5"
+                        >
+                          Rejected
+                        </Badge>
+                      ) : null}
                     </span>
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-muted-foreground block text-xs">
                       <LocalTime value={visit.checkedInAt} />
                     </span>
                   </span>

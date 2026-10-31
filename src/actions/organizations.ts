@@ -196,6 +196,26 @@ export async function setOrgTimezone(
   return { ok: true };
 }
 
+export async function setOrgManualCheckIn(
+  organizationId: string,
+  allowManualCheckIn: boolean,
+): Promise<ActionResult> {
+  await requireOrgAdmin(organizationId);
+
+  await db
+    .insert(organizationSettings)
+    .values({ organizationId, allowManualCheckIn })
+    .onConflictDoUpdate({
+      target: organizationSettings.organizationId,
+      set: { allowManualCheckIn },
+    });
+
+  revalidatePath(`/admin/${organizationId}`);
+  revalidatePath("/admin");
+  revalidatePath("/");
+  return { ok: true };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Joining, from the member's side                                            */
 /* -------------------------------------------------------------------------- */

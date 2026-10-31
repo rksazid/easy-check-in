@@ -1,9 +1,12 @@
+import { Hand, XCircle } from "lucide-react";
 import Link from "next/link";
 
 import { Avatar } from "@/components/avatar";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { CheckInPhotoGallery } from "@/components/check-in-photo-gallery";
 import { Elapsed } from "@/components/elapsed";
 import { LocalTime } from "@/components/local-time";
+import { ManualCheckInDecisionButton } from "@/components/manual-check-in-decision-button";
 import { VisitMap } from "@/components/map/visit-map-loader";
 import { Badge } from "@/components/ui/badge";
 import { formatDistance } from "@/lib/geo/haversine";
@@ -35,6 +38,32 @@ export default async function VisitPage({
 
   return (
     <div className="space-y-7">
+      <BreadcrumbNav
+        backHref={
+          visit.viewedAsAdmin ? `/admin/${visit.organizationId}` : "/activity"
+        }
+        backLabel={
+          visit.viewedAsAdmin
+            ? `Back to ${visit.organizationName}`
+            : "Back to activity"
+        }
+        items={
+          visit.viewedAsAdmin
+            ? [
+                { label: "Admin", href: "/admin" },
+                {
+                  label: visit.organizationName,
+                  href: `/admin/${visit.organizationId}`,
+                },
+                { label: "Visit Details" },
+              ]
+            : [
+                { label: "Activity", href: "/activity" },
+                { label: visit.placeName },
+              ]
+        }
+      />
+
       <div className="flex items-start gap-4">
         {visit.placeImageUrl ? (
           <img
@@ -44,15 +73,25 @@ export default async function VisitPage({
           />
         ) : null}
         <div className="min-w-0 space-y-1">
-          <Link
-            href={visit.viewedAsAdmin ? `/admin/${visit.organizationId}` : "/activity"}
-            className="text-muted-foreground text-sm underline-offset-4 hover:underline"
-          >
-            {visit.viewedAsAdmin ? "Back to the organization" : "Back to activity"}
-          </Link>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {visit.placeName}
-          </h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {visit.placeName}
+            </h1>
+            {visit.isManual ? (
+              <Badge
+                variant="outline"
+                className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 gap-1 text-xs font-medium"
+              >
+                <Hand className="size-3 text-amber-500" />
+                Manual Entry
+              </Badge>
+            ) : null}
+            {visit.status === "rejected" ? (
+              <Badge variant="destructive" className="text-xs">
+                Rejected
+              </Badge>
+            ) : null}
+          </div>
           <p className="text-muted-foreground text-sm">
             {visit.organizationName}, {visit.typeName}
           </p>
@@ -61,6 +100,41 @@ export default async function VisitPage({
           ) : null}
         </div>
       </div>
+
+      {visit.status === "rejected" ? (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-destructive space-y-1">
+          <div className="flex items-center gap-1.5 font-semibold text-sm">
+            <XCircle className="size-4" />
+            Check-In Rejected by Administrator
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {visit.rejectionReason
+              ? `Reason: ${visit.rejectionReason}`
+              : "This visit was rejected by an administrator."}
+            {visit.rejectedByName ? ` — reviewed by ${visit.rejectedByName}` : ""}
+            {visit.rejectedAt ? ` on ${new Date(visit.rejectedAt).toLocaleDateString()}` : ""}
+          </p>
+        </div>
+      ) : null}
+
+      {visit.viewedAsAdmin && visit.isManual ? (
+        <div className="rounded-xl border border-border/70 bg-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="space-y-0.5">
+            <p className="text-sm font-semibold">Manual Entry Review</p>
+            <p className="text-xs text-muted-foreground">
+              {visit.status === "rejected"
+                ? "This visit is rejected. You can restore it if it is legitimate."
+                : "This visit was logged manually without GPS. You can reject it if invalid."}
+            </p>
+          </div>
+          <ManualCheckInDecisionButton
+            checkInId={visit.id}
+            status={visit.status}
+            isManual={visit.isManual}
+            size="default"
+          />
+        </div>
+      ) : null}
 
       {visit.viewedAsAdmin ? (
         <div className="border-border/70 flex items-center gap-3 rounded-lg border px-4 py-3">
@@ -74,7 +148,7 @@ export default async function VisitPage({
         </div>
       ) : null}
 
-      <dl className="grid grid-cols-2 gap-3">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Detail label="Arrived">
           <LocalTime value={visit.checkedInAt} />
         </Detail>
@@ -88,8 +162,10 @@ export default async function VisitPage({
         <Detail label="Time there">
           <Elapsed since={visit.checkedInAt} until={visit.checkedOutAt} />
         </Detail>
-        <Detail label="Check-in radius">
-          <span className="readout">{visit.radiusM} m</span>
+        <Detail label="Check-in Type">
+          <span className="text-xs font-medium">
+            {visit.isManual ? "Manual (No GPS)" : "GPS Proximity"}
+          </span>
         </Detail>
       </dl>
 

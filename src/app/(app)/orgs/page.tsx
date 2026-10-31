@@ -1,5 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import Link from "next/link";
+import { MapPin, Settings } from "lucide-react";
 
 import { BrowseOrganizations } from "./browse-organizations";
 import { InvitationActions, RequestActions } from "./request-actions";
@@ -8,6 +9,7 @@ import { LocalTime } from "@/components/local-time";
 import { OrgIcon } from "@/components/org-icon";
 import { TagBadge } from "@/components/tag-badge";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
 import { joinRequests, organization } from "@/lib/db/schema";
 import { listMyInvitations } from "@/lib/invitations";
@@ -87,28 +89,30 @@ export default async function OrganizationsPage() {
             You have not joined an organization yet. Ask to join one below.
           </p>
         ) : (
-          <ul className="divide-border/70 border-border/70 divide-y rounded-lg border">
+          <ul className="divide-border/70 border-border/70 bg-card divide-y rounded-xl border shadow-xs overflow-hidden">
             {memberships.map((membership) => (
               <li
                 key={membership.organizationId}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 transition-colors hover:bg-muted/30"
               >
                 <Link
                   href={`/orgs/${membership.organizationId}`}
-                  className="min-w-0 flex-1 space-y-1"
+                  className="min-w-0 flex-1 space-y-1.5 group"
                 >
-                  <span className="flex items-center gap-2.5">
-                    <OrgIcon logo={membership.logo} name={membership.name} size="sm" />
-                    <span className="truncate font-medium underline-offset-4 hover:underline">
+                  <div className="flex items-start sm:items-center gap-2.5">
+                    <OrgIcon logo={membership.logo} name={membership.name} size="sm" className="shrink-0 mt-0.5 sm:mt-0" />
+                    <span className="font-semibold text-sm group-hover:underline underline-offset-4 break-words leading-tight">
                       {membership.name}
                     </span>
                     {membership.isAdmin ? (
-                      <Badge variant="secondary">{membership.role}</Badge>
+                      <Badge variant="secondary" className="capitalize text-xs font-normal shrink-0">
+                        {membership.role}
+                      </Badge>
                     ) : null}
-                  </span>
+                  </div>
                   {/* What this organization labels you as. */}
                   {(myTags.get(membership.organizationId) ?? []).length > 0 ? (
-                    <span className="flex flex-wrap gap-1">
+                    <span className="flex flex-wrap gap-1 pt-0.5">
                       {(myTags.get(membership.organizationId) ?? []).map(
                         (tag) => (
                           <TagBadge key={tag.id} name={tag.name} color={tag.color} />
@@ -117,23 +121,22 @@ export default async function OrganizationsPage() {
                     </span>
                   ) : null}
                 </Link>
-                <span className="flex shrink-0 items-center gap-4">
-                  {/* Anyone here can add a place, so everyone gets this link. */}
-                  <Link
-                    href={`/orgs/${membership.organizationId}/places`}
-                    className="text-sm font-medium underline underline-offset-4"
-                  >
-                    Places
-                  </Link>
-                  {membership.isAdmin ? (
-                    <Link
-                      href={`/admin/${membership.organizationId}`}
-                      className="text-sm font-medium underline underline-offset-4"
-                    >
-                      Manage
+                <div className="flex items-center gap-2 pt-1 sm:pt-0 shrink-0">
+                  <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs flex-1 sm:flex-initial">
+                    <Link href={`/orgs/${membership.organizationId}/places`}>
+                      <MapPin className="size-3.5 text-muted-foreground" />
+                      Places
                     </Link>
+                  </Button>
+                  {membership.isAdmin ? (
+                    <Button asChild size="sm" className="h-8 gap-1.5 text-xs flex-1 sm:flex-initial">
+                      <Link href={`/admin/${membership.organizationId}`}>
+                        <Settings className="size-3.5" />
+                        Manage
+                      </Link>
+                    </Button>
                   ) : null}
-                </span>
+                </div>
               </li>
             ))}
           </ul>

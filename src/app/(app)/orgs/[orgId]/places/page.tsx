@@ -1,8 +1,10 @@
 import { asc, desc, eq } from "drizzle-orm";
 import Link from "next/link";
+import { Compass, MapPin, Plus } from "lucide-react";
 
 import { PendingPlaceActions, PlaceRowActions } from "./place-row-actions";
 import { Avatar } from "@/components/avatar";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
@@ -76,21 +78,28 @@ export default async function PlacesPage({
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <BreadcrumbNav
+        backHref={`/orgs/${orgId}`}
+        backLabel={`Back to ${org?.name ?? "organization"}`}
+        items={[
+          { label: "Organizations", href: "/orgs" },
+          { label: org?.name ?? "Org", href: `/orgs/${orgId}` },
+          { label: "Places" },
+        ]}
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <Link
-            href="/orgs"
-            className="text-muted-foreground text-sm underline-offset-4 hover:underline"
-          >
-            Back to organizations
-          </Link>
           <h1 className="text-2xl font-semibold tracking-tight">Places</h1>
           <p className="text-muted-foreground text-sm">
             Where people check in for {org?.name}.
           </p>
         </div>
-        <Button asChild>
-          <Link href={`/orgs/${orgId}/places/new`}>Add a place</Link>
+        <Button asChild className="gap-1.5 shadow-xs">
+          <Link href={`/orgs/${orgId}/places/new`}>
+            <Plus className="size-4" />
+            Add a place
+          </Link>
         </Button>
       </div>
 
@@ -107,33 +116,37 @@ export default async function PlacesPage({
             Waiting for approval
             <Badge className="ml-2">{waiting.length}</Badge>
           </h2>
-          <ul className="divide-border/70 border-border/70 divide-y rounded-lg border">
+          <ul className="divide-border/70 border-border/70 bg-card divide-y rounded-xl border shadow-xs overflow-hidden">
             {waiting.map((place) => (
               <li
                 key={place.id}
-                className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 p-4 transition-colors hover:bg-muted/30"
               >
-                <div className="flex items-start gap-3 min-w-0">
+                <div className="flex items-start gap-3.5 min-w-0 flex-1">
                   {place.imageUrl ? (
                     <img
                       src={place.imageUrl}
                       alt={place.name}
-                      className="border-border/70 size-12 shrink-0 rounded-lg border object-cover"
+                      className="border-border/70 size-12 shrink-0 rounded-xl border object-cover shadow-xs"
                     />
-                  ) : null}
+                  ) : (
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/50 text-muted-foreground">
+                      <MapPin className="size-5 text-muted-foreground/70" />
+                    </div>
+                  )}
                   <div className="min-w-0 space-y-1">
                     <p className="flex flex-wrap items-center gap-2 font-medium">
                       {place.name}
                       <Badge variant="secondary">{place.typeName}</Badge>
                     </p>
                     {place.address ? (
-                      <p className="text-muted-foreground text-sm">
+                      <p className="text-muted-foreground text-xs line-clamp-1">
                         {place.address}
                       </p>
                     ) : null}
-                    <p className="text-muted-foreground readout text-xs">
-                      {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}, within{" "}
-                      {place.radiusM} m
+                    <p className="text-muted-foreground readout text-[11px] flex items-center gap-1">
+                      <Compass className="size-3 text-muted-foreground/70 shrink-0" />
+                      within {place.radiusM} m • {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}
                     </p>
                     {isAdmin && place.proposerName ? (
                       <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
@@ -167,42 +180,46 @@ export default async function PlacesPage({
             No places yet. Add one so people have somewhere to check in.
           </p>
         ) : (
-          <ul className="divide-border/70 border-border/70 divide-y rounded-lg border">
+          <ul className="divide-border/70 border-border/70 bg-card divide-y rounded-xl border shadow-xs overflow-hidden">
             {approved.map((place) => (
               <li
                 key={place.id}
-                className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-4 p-4 transition-colors hover:bg-muted/30"
               >
-                <div className="flex items-start gap-3 min-w-0">
+                <div className="flex items-start gap-3.5 min-w-0 flex-1">
                   {place.imageUrl ? (
                     <img
                       src={place.imageUrl}
                       alt={place.name}
-                      className="border-border/70 size-12 shrink-0 rounded-lg border object-cover"
+                      className="border-border/70 size-12 shrink-0 rounded-xl border object-cover shadow-xs"
                     />
-                  ) : null}
+                  ) : (
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/50 text-muted-foreground">
+                      <MapPin className="size-5 text-muted-foreground/70" />
+                    </div>
+                  )}
                   <div className="min-w-0 space-y-1">
-                    <p className="flex flex-wrap items-center gap-2 font-medium">
+                    <div className="flex flex-wrap items-center gap-2">
                       {isAdmin ? (
                         <Link
                           href={`/orgs/${orgId}/places/${place.id}`}
-                          className="underline-offset-4 hover:underline"
+                          className="font-semibold text-sm hover:underline underline-offset-4"
                         >
                           {place.name}
                         </Link>
                       ) : (
-                        place.name
+                        <span className="font-semibold text-sm">{place.name}</span>
                       )}
-                      <Badge variant="secondary">{place.typeName}</Badge>
-                    </p>
+                      <Badge variant="secondary" className="text-xs font-normal">{place.typeName}</Badge>
+                    </div>
                     {place.address ? (
-                      <p className="text-muted-foreground text-sm">
+                      <p className="text-muted-foreground text-xs line-clamp-1">
                         {place.address}
                       </p>
                     ) : null}
-                    <p className="text-muted-foreground readout text-xs">
-                      {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}, within{" "}
-                      {place.radiusM} m
+                    <p className="text-muted-foreground readout text-[11px] flex items-center gap-1">
+                      <Compass className="size-3 text-muted-foreground/70 shrink-0" />
+                      within {place.radiusM} m • {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}
                     </p>
                   </div>
                 </div>

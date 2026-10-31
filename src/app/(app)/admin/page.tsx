@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   Building2,
   CalendarCheck,
-  CheckCircle2,
   Clock,
   FileSpreadsheet,
   MapPin,
@@ -14,7 +13,6 @@ import {
 
 import { getPlatformStats, listAllPlatformUsers } from "@/actions/users";
 import { listAllPlaceTypesForAdmin } from "@/actions/place-types";
-import { LocalTime } from "@/components/local-time";
 import { OrgIcon } from "@/components/org-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,15 +21,19 @@ import { member, organization, organizationSettings } from "@/lib/db/schema";
 import { listAdministeredOrganizations } from "@/lib/org";
 import { isSuperAdmin, requireSession } from "@/lib/session";
 import { RoleBadge } from "./[orgId]/member-role-changer";
-import { PlatformUserManager } from "./platform-user-manager";
-import { CreateOrganizationForm } from "../sa/create-organization-form";
-import { PlaceTypeManager } from "../sa/place-type-manager";
+import { AdminTabs } from "./admin-tabs";
 
 export const metadata = { title: "Admin Panel" };
 
-export default async function AdminHubPage() {
+type AdminHubPageProps = {
+  searchParams?: Promise<{ tab?: string }>;
+};
+
+export default async function AdminHubPage({ searchParams }: AdminHubPageProps) {
   const session = await requireSession();
   const superAdmin = isSuperAdmin(session.user);
+  const params = await searchParams;
+  const initialTab = params?.tab;
 
   // Load organizations the user administers (owner, admin, or manager)
   const managedOrgs = await listAdministeredOrganizations(session.user.id);
@@ -158,7 +160,7 @@ export default async function AdminHubPage() {
   }
 
   // --------------------------------------------------------------------------
-  // Super Admin Platform View
+  // Super Admin Platform View (Consolidated Tabbed Interface)
   // --------------------------------------------------------------------------
   const [stats, allUsers, allOrganizations, placeTypesList] = await Promise.all([
     getPlatformStats(),
@@ -171,6 +173,7 @@ export default async function AdminHubPage() {
         logo: organization.logo,
         createdAt: organization.createdAt,
         timezone: organizationSettings.timezone,
+        allowManualCheckIn: sql<boolean>`COALESCE(${organizationSettings.allowManualCheckIn}, false)`,
         memberCount: sql<number>`count(${member.id})::int`,
       })
       .from(organization)
@@ -186,13 +189,14 @@ export default async function AdminHubPage() {
         organization.logo,
         organization.createdAt,
         organizationSettings.timezone,
+        organizationSettings.allowManualCheckIn,
       )
       .orderBy(asc(organization.name)),
     listAllPlaceTypesForAdmin(),
   ]);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       {/* Header */}
       <div className="space-y-1">
         <div className="flex items-center gap-2">
@@ -213,9 +217,9 @@ export default async function AdminHubPage() {
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-1">
+        <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-1 shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium">Registered Users</span>
+            <span className="text-xs font-medium">Platform Users</span>
             <Users className="size-4" />
           </div>
           <p className="text-2xl font-bold">{stats.totalUsers}</p>
@@ -224,7 +228,7 @@ export default async function AdminHubPage() {
           </p>
         </div>
 
-        <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-1">
+        <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-1 shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Organizations</span>
             <Building2 className="size-4" />
@@ -233,9 +237,9 @@ export default async function AdminHubPage() {
           <p className="text-[11px] text-muted-foreground">Active workspaces</p>
         </div>
 
-        <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-1">
+        <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-1 shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium">Today&apos;s Check-ins</span>
+            <span className="text-xs font-medium">Today&apos;s Visits</span>
             <CalendarCheck className="size-4 text-emerald-500" />
           </div>
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
@@ -244,7 +248,7 @@ export default async function AdminHubPage() {
           <p className="text-[11px] text-muted-foreground">Across all places</p>
         </div>
 
-        <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-1">
+        <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-1 shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Total Places</span>
             <MapPin className="size-4" />
@@ -254,82 +258,14 @@ export default async function AdminHubPage() {
         </div>
       </div>
 
-      {/* Section 1: User Management */}
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold tracking-tight">User Management</h2>
-          <p className="text-xs text-muted-foreground">
-            Manage all platform accounts, assign or revoke Super Admin roles, and
-            manage account status.
-          </p>
-        </div>
-        <PlatformUserManager
-          initialUsers={allUsers}
-          currentUserId={session.user.id}
-        />
-      </section>
-
-      {/* Section 2: Create Organization */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight">Create Organization</h2>
-        <CreateOrganizationForm />
-      </section>
-
-      {/* Section 3: All Organizations */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold tracking-tight">
-            All Organizations ({allOrganizations.length})
-          </h2>
-        </div>
-
-        {allOrganizations.length === 0 ? (
-          <p className="text-muted-foreground border-border/70 rounded-lg border border-dashed px-4 py-8 text-center text-sm">
-            No organizations yet.
-          </p>
-        ) : (
-          <ul className="divide-border/70 border-border/70 divide-y rounded-lg border">
-            {allOrganizations.map((org) => (
-              <li
-                key={org.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <OrgIcon logo={org.logo} name={org.name} size="md" />
-                  <div className="min-w-0">
-                    <p className="font-medium">
-                      {org.name}{" "}
-                      <span className="readout text-muted-foreground text-xs font-normal">
-                        {org.slug}
-                      </span>
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {org.memberCount}{" "}
-                      {org.memberCount === 1 ? "member" : "members"}, on{" "}
-                      {org.timezone ?? "UTC"}, created{" "}
-                      <LocalTime value={org.createdAt} format="date" />
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/orgs/${org.id}`}>Public Page</Link>
-                  </Button>
-                  <Button asChild size="sm">
-                    <Link href={`/admin/${org.id}`}>Manage Org</Link>
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Section 4: Place Types Manager */}
-      <section className="space-y-3">
-        <PlaceTypeManager initialPlaceTypes={placeTypesList} />
-      </section>
+      {/* Clean Tabbed Interface: Users Table, Organizations Table, Place Types */}
+      <AdminTabs
+        initialTab={initialTab}
+        allUsers={allUsers}
+        allOrganizations={allOrganizations}
+        placeTypesList={placeTypesList}
+        currentUserId={session.user.id}
+      />
     </div>
   );
 }
-

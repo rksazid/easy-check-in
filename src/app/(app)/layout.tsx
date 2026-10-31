@@ -37,9 +37,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         pinned the phone tab bar to the top of the header instead of the
         bottom of the screen.
       */}
-      <OfflineBanner />
-
-      <header className="border-border/70 bg-background sticky top-0 z-30 border-b">
+      <header className="border-border/70 bg-background sticky top-0 z-30 border-b safe-area-top pt-[env(safe-area-inset-top,0px)]">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-4 py-2.5">
           <Link href="/" className="inline-flex rounded-md outline-offset-4">
             <BrandLockup />
@@ -54,7 +52,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <Link
               href="/profile"
               aria-label="Your profile"
-              className="hover:bg-accent rounded-full p-0.5 transition-colors"
+              className="relative inline-flex size-8 items-center justify-center rounded-full outline-none transition-all duration-150 ring-1 ring-border/80 hover:ring-2 hover:ring-primary/80 hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 shadow-2xs"
             >
               <Avatar
                 name={session.user.name}
@@ -65,6 +63,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </div>
         </div>
       </header>
+
+      <OfflineBanner />
 
       {/* The bottom padding keeps content clear of the phone tab bar. */}
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 sm:px-5 sm:pb-12">

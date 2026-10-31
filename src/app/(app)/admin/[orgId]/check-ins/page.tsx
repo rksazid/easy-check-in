@@ -1,12 +1,14 @@
 import { asc, eq } from "drizzle-orm";
-import { Camera, ChevronRight } from "lucide-react";
+import { Camera, ChevronRight, Hand } from "lucide-react";
 import Link from "next/link";
 
 import { CheckInFilters } from "./check-in-filters";
 import { sweepForgottenCheckIns } from "@/actions/check-in";
 import { Avatar } from "@/components/avatar";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { Elapsed } from "@/components/elapsed";
 import { LocalTime } from "@/components/local-time";
+import { ManualCheckInDecisionButton } from "@/components/manual-check-in-decision-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
@@ -109,13 +111,17 @@ export default async function CheckInLogPage({
 
   return (
     <div className="space-y-6">
+      <BreadcrumbNav
+        backHref={`/admin/${orgId}`}
+        backLabel={`Back to ${organization.name}`}
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: organization.name, href: `/admin/${orgId}` },
+          { label: "Check-ins" },
+        ]}
+      />
+
       <div className="space-y-1">
-        <Link
-          href={`/admin/${orgId}`}
-          className="text-muted-foreground text-sm underline-offset-4 hover:underline"
-        >
-          Back to {organization.name}
-        </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Check-ins</h1>
         <p className="text-muted-foreground text-sm">
           Every visit in {formatMonthLabel(toMonthKey(month.year, month.month))}.
@@ -155,12 +161,26 @@ export default async function CheckInLogPage({
                 <Avatar name={row.personName} src={row.personImage} />
 
                 <span className="min-w-0 flex-1 space-y-0.5">
-                  <span className="flex flex-wrap items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-1.5">
                     <span className="truncate font-medium">
                       {row.personName}
                     </span>
                     {row.checkedOutAt === null ? (
                       <Badge>Here now</Badge>
+                    ) : null}
+                    {row.isManual ? (
+                      <Badge
+                        variant="outline"
+                        className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 gap-1 px-1.5 py-0 text-[10px] font-medium"
+                      >
+                        <Hand className="size-2.5 text-amber-500" />
+                        Manual
+                      </Badge>
+                    ) : null}
+                    {row.status === "rejected" ? (
+                      <Badge variant="destructive" className="px-1.5 py-0 text-[10px]">
+                        Rejected
+                      </Badge>
                     ) : null}
                     {row.photoCount > 0 ? (
                       <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[10px]">
@@ -179,20 +199,32 @@ export default async function CheckInLogPage({
                     {row.captures > 0
                       ? `, ${row.captures} ${row.captures === 1 ? "reading" : "readings"}`
                       : ", no readings"}
+                    {row.rejectionReason ? (
+                      <span className="text-destructive font-medium ml-1">
+                        ({row.rejectionReason})
+                      </span>
+                    ) : null}
                   </span>
                 </span>
 
-                <span className="readout shrink-0 text-sm">
-                  {row.seconds === null ? (
-                    <Elapsed since={row.checkedInAt} />
-                  ) : (
-                    formatHours(row.seconds)
-                  )}
-                </span>
-                <ChevronRight
-                  aria-hidden="true"
-                  className="text-muted-foreground size-4 shrink-0"
-                />
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="readout text-sm">
+                    {row.seconds === null ? (
+                      <Elapsed since={row.checkedInAt} />
+                    ) : (
+                      formatHours(row.seconds)
+                    )}
+                  </span>
+                  <ManualCheckInDecisionButton
+                    checkInId={row.id}
+                    status={row.status}
+                    isManual={row.isManual}
+                  />
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="text-muted-foreground size-4 shrink-0"
+                  />
+                </div>
               </Link>
             </li>
           ))}

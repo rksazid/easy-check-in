@@ -36,6 +36,8 @@ export type VisitListItem = {
   checkedOutAt: Date | null;
   checkoutReason: string | null;
   seconds: number | null;
+  isManual: boolean;
+  status: string;
 };
 
 const durationSeconds = sql<
@@ -58,6 +60,8 @@ export async function listUserVisits(
       checkedOutAt: checkIns.checkedOutAt,
       checkoutReason: checkIns.checkoutReason,
       seconds: durationSeconds,
+      isManual: checkIns.isManual,
+      status: checkIns.status,
     })
     .from(checkIns)
     .innerJoin(places, eq(checkIns.placeId, places.id))
@@ -162,6 +166,11 @@ export type VisitDetail = {
   seconds: number | null;
   personName: string;
   personImage: string | null;
+  isManual: boolean;
+  status: string;
+  rejectedAt: Date | null;
+  rejectionReason: string | null;
+  rejectedByName: string | null;
   /** True when the viewer is looking at somebody else's visit as an admin. */
   viewedAsAdmin: boolean;
   canManage: boolean;
@@ -211,6 +220,15 @@ export async function getVisitDetail(visitId: string): Promise<VisitDetail> {
       seconds: durationSeconds,
       personName: user.name,
       personImage: user.image,
+      isManual: checkIns.isManual,
+      status: checkIns.status,
+      rejectedAt: checkIns.rejectedAt,
+      rejectionReason: checkIns.rejectionReason,
+      rejectedByName: sql<string | null>`(
+        SELECT u.name FROM "user" u
+         WHERE u.id = ${checkIns.rejectedBy}
+         LIMIT 1
+      )`,
       viewerRole: sql<string | null>`(
         SELECT m.role FROM member m
          WHERE m.organization_id = ${checkIns.organizationId}
@@ -277,6 +295,11 @@ export async function getVisitDetail(visitId: string): Promise<VisitDetail> {
     seconds: row.seconds === null ? null : Number(row.seconds),
     personName: row.personName,
     personImage: row.personImage,
+    isManual: row.isManual,
+    status: row.status,
+    rejectedAt: row.rejectedAt,
+    rejectionReason: row.rejectionReason,
+    rejectedByName: row.rejectedByName,
     viewedAsAdmin: !own && admin,
     canManage: own || admin,
     captures,
@@ -360,6 +383,10 @@ export type OrgCheckInRow = {
   seconds: number | null;
   captures: number;
   photoCount: number;
+  isManual: boolean;
+  status: string;
+  rejectedAt: Date | null;
+  rejectionReason: string | null;
 };
 
 /**
@@ -413,6 +440,10 @@ export async function listOrganizationCheckIns(
       checkedOutAt: checkIns.checkedOutAt,
       checkoutReason: checkIns.checkoutReason,
       seconds: durationSeconds,
+      isManual: checkIns.isManual,
+      status: checkIns.status,
+      rejectedAt: checkIns.rejectedAt,
+      rejectionReason: checkIns.rejectionReason,
       captures: sql<number>`(
         SELECT count(*)::int FROM location_captures lc
          WHERE lc.check_in_id = ${checkIns.id}

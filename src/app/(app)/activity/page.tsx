@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Hand } from "lucide-react";
 import Link from "next/link";
 
 import { sweepForgottenCheckIns } from "@/actions/check-in";
@@ -147,12 +147,29 @@ export default async function ActivityPage() {
                   className="hover:bg-accent/50 flex min-h-16 items-center gap-3 px-4 py-3 transition-colors"
                 >
                   <span className="min-w-0 flex-1 space-y-0.5">
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5 flex-wrap">
                       <span className="truncate font-medium">
                         {visit.placeName}
                       </span>
                       {visit.checkedOutAt === null ? (
                         <Badge className="shrink-0">Now</Badge>
+                      ) : null}
+                      {visit.isManual ? (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 gap-1 text-[10px] font-medium py-0 px-1.5"
+                        >
+                          <Hand className="size-2.5 text-amber-500" />
+                          Manual
+                        </Badge>
+                      ) : null}
+                      {visit.status === "rejected" ? (
+                        <Badge
+                          variant="destructive"
+                          className="text-[10px] py-0 px-1.5"
+                        >
+                          Rejected
+                        </Badge>
                       ) : null}
                     </span>
                     <span className="text-muted-foreground block text-xs">

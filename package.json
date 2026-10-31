@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "NODE_OPTIONS=\"--experimental-require-module\" vitest run",
     "test:watch": "vitest",
     "auth:generate": "auth generate --config src/lib/auth.ts --output src/lib/db/schema/auth.ts --adapter drizzle --dialect postgresql -y",
     "db:generate": "drizzle-kit generate",

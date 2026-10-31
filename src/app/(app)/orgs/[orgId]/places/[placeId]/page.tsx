@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 
 import { PlaceForm } from "../place-form";
 import { listPlaceTypes } from "@/actions/places";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { db } from "@/lib/db/client";
-import { places } from "@/lib/db/schema";
+import { organization, places } from "@/lib/db/schema";
 import { requireMembership } from "@/lib/org";
 
 export default async function EditPlacePage({
@@ -14,11 +15,18 @@ export default async function EditPlacePage({
   const { orgId, placeId } = await params;
   const { session, isAdmin } = await requireMembership(orgId);
 
-  const [place] = await db
-    .select()
-    .from(places)
-    .where(and(eq(places.id, placeId), eq(places.organizationId, orgId)))
-    .limit(1);
+  const [[place], [org]] = await Promise.all([
+    db
+      .select()
+      .from(places)
+      .where(and(eq(places.id, placeId), eq(places.organizationId, orgId)))
+      .limit(1),
+    db
+      .select({ name: organization.name })
+      .from(organization)
+      .where(eq(organization.id, orgId))
+      .limit(1),
+  ]);
 
   if (!place) notFound();
 
@@ -31,13 +39,18 @@ export default async function EditPlacePage({
 
   return (
     <div className="space-y-6">
+      <BreadcrumbNav
+        backHref={`/orgs/${orgId}/places`}
+        backLabel="Back to places"
+        items={[
+          { label: "Organizations", href: "/orgs" },
+          { label: org?.name ?? "Org", href: `/orgs/${orgId}` },
+          { label: "Places", href: `/orgs/${orgId}/places` },
+          { label: place.name },
+        ]}
+      />
+
       <div className="space-y-1">
-        <Link
-          href={`/orgs/${orgId}/places`}
-          className="text-muted-foreground text-sm underline-offset-4 hover:underline"
-        >
-          Back to places
-        </Link>
         <h1 className="text-2xl font-semibold tracking-tight">{place.name}</h1>
         {place.status === "pending" ? (
           <p className="text-muted-foreground text-sm">

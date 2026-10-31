@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ReportFilters } from "./report-filters";
 import { sweepForgottenCheckIns } from "@/actions/check-in";
 import { Avatar } from "@/components/avatar";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { BarList } from "@/components/charts/bar-list";
 import { ColumnChart } from "@/components/charts/column-chart";
 import { LocalTime } from "@/components/local-time";
@@ -132,14 +133,18 @@ export default async function ReportsPage({
 
   return (
     <div className="space-y-8">
+      <BreadcrumbNav
+        backHref={`/admin/${orgId}`}
+        backLabel={`Back to ${organization.name}`}
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: organization.name, href: `/admin/${orgId}` },
+          { label: "Reports" },
+        ]}
+      />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <Link
-            href={`/admin/${orgId}`}
-            className="text-muted-foreground text-sm underline-offset-4 hover:underline"
-          >
-            Back to {organization.name}
-          </Link>
           <h1 className="text-2xl font-semibold tracking-tight">
             {formatMonthLabel(toMonthKey(parsedMonth.year, parsedMonth.month))}
           </h1>

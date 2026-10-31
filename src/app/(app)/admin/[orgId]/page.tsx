@@ -13,8 +13,10 @@ import { TagManager } from "./tag-manager";
 import { TimezoneForm } from "./timezone-form";
 import { sweepForgottenCheckIns } from "@/actions/check-in";
 import { Avatar } from "@/components/avatar";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { Elapsed } from "@/components/elapsed";
 import { LocalTime } from "@/components/local-time";
+import { ManualCheckInSwitch } from "@/components/manual-check-in-switch";
 import { OrgIcon } from "@/components/org-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -134,6 +136,7 @@ export default async function OrgAdminPage({
       .select({
         slackWebhookUrl: organizationSettings.slackWebhookUrl,
         slackNotifyEvents: organizationSettings.slackNotifyEvents,
+        allowManualCheckIn: organizationSettings.allowManualCheckIn,
       })
       .from(organizationSettings)
       .where(eq(organizationSettings.organizationId, orgId))
@@ -144,7 +147,16 @@ export default async function OrgAdminPage({
   const canAdministerSettings = isAdmin || isSuperAdmin;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
+      <BreadcrumbNav
+        backHref="/admin"
+        backLabel="Back to admin"
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: organization.name },
+        ]}
+      />
+
       {/* Manager Scoped Banner */}
       {isManager && !canAdministerSettings ? (
         <div className="flex items-center gap-3 rounded-lg border border-sky-500/30 bg-sky-500/10 p-3.5 text-xs text-sky-900 dark:text-sky-200">
@@ -313,6 +325,25 @@ export default async function OrgAdminPage({
               }
               notifyEvents={slack?.slackNotifyEvents ?? true}
             />
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold">Manual check-in</h2>
+            <p className="text-muted-foreground max-w-prose text-sm">
+              Allow members to select an approved place and check in without GPS proximity. Ideal when GPS is unavailable or internet is patchy. Entries are marked as manual.
+            </p>
+            <div className="rounded-xl border border-border/70 bg-card p-4 flex items-center justify-between shadow-xs">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">Allow manual check-ins</p>
+                <p className="text-xs text-muted-foreground">
+                  Members can manually pick any approved place in this organization to check in.
+                </p>
+              </div>
+              <ManualCheckInSwitch
+                organizationId={orgId}
+                enabled={settingsRows[0]?.allowManualCheckIn ?? false}
+              />
+            </div>
           </section>
 
           <section className="space-y-3">

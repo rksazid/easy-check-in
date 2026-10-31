@@ -181,6 +181,7 @@ export async function requireOrgAdmin(
       slug: organization.slug,
       logo: organization.logo,
       timezone: organizationSettings.timezone,
+      allowManualCheckIn: organizationSettings.allowManualCheckIn,
     })
     .from(organization)
     .leftJoin(
@@ -222,6 +223,7 @@ export async function requireOrgAdmin(
       slug: row.slug,
       logo: row.logo,
       timezone: row.timezone ?? "UTC",
+      allowManualCheckIn: row.allowManualCheckIn ?? false,
     },
   };
 }

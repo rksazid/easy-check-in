@@ -6,7 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="flex items-center justify-between px-6 py-6">
+      <header className="flex items-center justify-between px-6 pb-6 pt-[calc(1.5rem+env(safe-area-inset-top))]">
         <Link href="/" className="inline-flex rounded-md outline-offset-4">
           <BrandLockup />
         </Link>

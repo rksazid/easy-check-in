@@ -149,17 +149,52 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+    -webkit-tap-highlight-color: oklch(0.735 0.1287 176 / 25%);
+  }
   body {
     @apply bg-background text-foreground;
-    }
+    touch-action: manipulation;
+  }
   html {
     @apply font-sans;
-    }
+  }
+  /* Fast interactive touch feedback */
+  button, a, [role="button"], input[type="button"], input[type="submit"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: oklch(0.735 0.1287 176 / 25%);
+  }
   /* Sensor readings: coordinates, distances and durations are instrument data. */
   .readout {
     @apply font-mono tabular-nums tracking-tight;
-    }
+  }
+}
+
+/* iOS safe-area utilities for PWA and notch/Dynamic Island devices */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Touch feedback utility for cards and interactive rows */
+.touch-press {
+  transition: transform 75ms cubic-bezier(0.4, 0, 0.2, 1), opacity 75ms ease-out, background-color 75ms ease-out;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.touch-press:active {
+  transform: scale(0.98);
+  opacity: 0.88;
+}
+
+/* Smooth hidden scrollbars utility */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* Leaflet map adaptations in dark mode */

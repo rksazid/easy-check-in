@@ -11,6 +11,7 @@ import {
   locationCaptures,
   member,
   organization,
+  organizationSettings,
   places,
   placeTypes,
 } from "@/lib/db/schema";
@@ -82,6 +83,8 @@ export type ActiveCheckIn = {
   longitude: number;
   radiusM: number;
   captureCount: number;
+  isManual: boolean;
+  status: "approved" | "rejected";
   images: CheckInImageItem[];
 };
 
@@ -110,6 +113,8 @@ export async function getUserActiveCheckIn(
     .select({
       id: checkIns.id,
       checkedInAt: checkIns.checkedInAt,
+      isManual: checkIns.isManual,
+      status: checkIns.status,
       placeId: places.id,
       placeName: places.name,
       placeTypeName: placeTypes.name,
@@ -134,7 +139,11 @@ export async function getUserActiveCheckIn(
 
   if (!row) return null;
   const images = await getCheckInImages(row.id);
-  return { ...row, images };
+  return {
+    ...row,
+    status: row.status as "approved" | "rejected",
+    images,
+  };
 }
 
 export async function getActiveCheckIn(): Promise<ActiveCheckIn | null> {
@@ -313,6 +322,197 @@ export async function checkIn(
   return checkInUser(session.user.id, placeId, position);
 }
 
+export type ManualCheckInPlace = {
+  id: string;
+  name: string;
+  typeName: string;
+  imageUrl: string | null;
+  organizationId: string;
+  organizationName: string;
+  address: string | null;
+};
+
+/**
+ * Places from organizations the user belongs to where manual check-in
+ * is currently enabled by an admin.
+ */
+export async function getManualCheckInPlaces(): Promise<ManualCheckInPlace[]> {
+  const session = await requireSession();
+  return getManualCheckInPlacesForUser(session.user.id);
+}
+
+export async function getManualCheckInPlacesForUser(
+  userId: string,
+): Promise<ManualCheckInPlace[]> {
+  const rows = await db
+    .select({
+      id: places.id,
+      name: places.name,
+      typeName: placeTypes.name,
+      imageUrl: places.imageUrl,
+      organizationId: places.organizationId,
+      organizationName: organization.name,
+      address: places.address,
+    })
+    .from(places)
+    .innerJoin(placeTypes, eq(places.placeTypeId, placeTypes.id))
+    .innerJoin(organization, eq(places.organizationId, organization.id))
+    .innerJoin(
+      organizationSettings,
+      eq(organizationSettings.organizationId, organization.id),
+    )
+    .innerJoin(
+      member,
+      and(
+        eq(member.organizationId, places.organizationId),
+        eq(member.userId, userId),
+      ),
+    )
+    .where(
+      and(
+        eq(places.isActive, true),
+        eq(places.status, "approved"),
+        eq(organizationSettings.allowManualCheckIn, true),
+      ),
+    )
+    .orderBy(asc(organization.name), asc(places.name));
+
+  return rows;
+}
+
+/**
+ * Creates a manual check-in for a member without GPS proximity checks,
+ * provided the organization settings permit it.
+ */
+export async function manualCheckIn(
+  placeId: string,
+  note?: string,
+): Promise<CheckInResult> {
+  const session = await requireSession();
+  await sweepForgottenCheckIns();
+
+  const [place] = await db
+    .select({
+      id: places.id,
+      organizationId: places.organizationId,
+      latitude: places.latitude,
+      longitude: places.longitude,
+      isActive: places.isActive,
+      status: places.status,
+      allowManualCheckIn: organizationSettings.allowManualCheckIn,
+    })
+    .from(places)
+    .innerJoin(
+      member,
+      and(
+        eq(member.organizationId, places.organizationId),
+        eq(member.userId, session.user.id),
+      ),
+    )
+    .leftJoin(
+      organizationSettings,
+      eq(organizationSettings.organizationId, places.organizationId),
+    )
+    .where(eq(places.id, placeId))
+    .limit(1);
+
+  if (!place || !place.isActive || place.status !== "approved") {
+    return { ok: false, error: "That place is not available to you." };
+  }
+
+  if (!place.allowManualCheckIn) {
+    return {
+      ok: false,
+      error: "Manual check-in is not permitted for this organization.",
+    };
+  }
+
+  try {
+    const now = new Date();
+    const [created] = await db
+      .insert(checkIns)
+      .values({
+        userId: session.user.id,
+        placeId: place.id,
+        organizationId: place.organizationId,
+        checkedInAt: now,
+        isManual: true,
+        status: "approved",
+      })
+      .returning({ id: checkIns.id });
+
+    await db.insert(locationCaptures).values({
+      checkInId: created.id,
+      kind: "manual",
+      latitude: place.latitude,
+      longitude: place.longitude,
+      accuracyM: null,
+      distanceM: 0,
+      inside: true,
+      createdAt: now,
+    });
+  } catch {
+    return {
+      ok: false,
+      error: "You are already checked in somewhere. Check out first.",
+    };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/activity");
+  revalidatePath(`/admin/${place.organizationId}/check-ins`);
+  return { ok: true };
+}
+
+/**
+ * Allows an organization admin (or super admin) to approve or reject a manual check-in entry.
+ */
+export async function decideManualCheckIn(
+  checkInId: string,
+  status: "approved" | "rejected",
+  reason?: string,
+): Promise<CheckInResult> {
+  const session = await requireSession();
+
+  const [visit] = await db
+    .select({
+      id: checkIns.id,
+      organizationId: checkIns.organizationId,
+      isManual: checkIns.isManual,
+      status: checkIns.status,
+    })
+    .from(checkIns)
+    .where(eq(checkIns.id, checkInId))
+    .limit(1);
+
+  if (!visit) {
+    return { ok: false, error: "Check-in not found." };
+  }
+
+  await requireOrgAdmin(visit.organizationId);
+
+  await db
+    .update(checkIns)
+    .set({
+      status,
+      rejectedBy: status === "rejected" ? session.user.id : null,
+      rejectedAt: status === "rejected" ? new Date() : null,
+      rejectionReason:
+        status === "rejected"
+          ? reason?.trim() || "Rejected by administrator"
+          : null,
+    })
+    .where(eq(checkIns.id, checkInId));
+
+  revalidatePath(`/visits/${checkInId}`);
+  revalidatePath(`/admin/${visit.organizationId}/check-ins`);
+  revalidatePath(`/admin/${visit.organizationId}`);
+  revalidatePath("/activity");
+  revalidatePath("/");
+
+  return { ok: true };
+}
+
 export async function storeLocationForUser(
   userId: string,
   position: Position,
@@ -440,6 +640,8 @@ export type VisitSummary = {
   checkedInAt: Date;
   checkedOutAt: Date | null;
   checkoutReason: string | null;
+  isManual: boolean;
+  status: string;
 };
 
 export async function listMyRecentVisits(limit = 20): Promise<VisitSummary[]> {
@@ -454,6 +656,8 @@ export async function listMyRecentVisits(limit = 20): Promise<VisitSummary[]> {
       checkedInAt: checkIns.checkedInAt,
       checkedOutAt: checkIns.checkedOutAt,
       checkoutReason: checkIns.checkoutReason,
+      isManual: checkIns.isManual,
+      status: checkIns.status,
     })
     .from(checkIns)
     .innerJoin(places, eq(checkIns.placeId, places.id))

@@ -34,8 +34,8 @@ export function RingButton({
         disabled
           ? "bg-muted text-muted-foreground"
           : tone === "go"
-            ? "bg-signal text-signal-foreground hover:brightness-105 active:scale-[0.97]"
-            : "bg-primary text-primary-foreground hover:brightness-110 active:scale-[0.97]",
+            ? "bg-signal text-signal-foreground hover:brightness-105 active:scale-[0.95] active:brightness-90 transition-all duration-75 cursor-pointer"
+            : "bg-primary text-primary-foreground hover:brightness-110 active:scale-[0.95] active:brightness-90 transition-all duration-75 cursor-pointer",
       )}
     >
       {/*

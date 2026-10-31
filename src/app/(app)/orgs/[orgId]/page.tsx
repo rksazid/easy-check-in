@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Avatar } from "@/components/avatar";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { LocalTime } from "@/components/local-time";
 import { OrgIcon } from "@/components/org-icon";
 import { TagBadge } from "@/components/tag-badge";
@@ -62,13 +63,16 @@ export default async function OrganizationPage({
 
   return (
     <div className="space-y-8">
+      <BreadcrumbNav
+        backHref="/orgs"
+        backLabel="Back to organizations"
+        items={[
+          { label: "Organizations", href: "/orgs" },
+          { label: org.name },
+        ]}
+      />
+
       <div className="space-y-1">
-        <Link
-          href="/orgs"
-          className="text-muted-foreground text-sm underline-offset-4 hover:underline"
-        >
-          Back to organizations
-        </Link>
         <div className="flex items-center gap-3">
           <OrgIcon logo={org.logo} name={org.name} size="lg" />
           <h1 className="text-2xl font-semibold tracking-tight">{org.name}</h1>

@@ -1,7 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
+import { Archive, Pencil, RotateCcw } from "lucide-react";
 
 import { reviewPlace, setPlaceActive, withdrawPlace } from "@/actions/places";
 import { Button } from "@/components/ui/button";
@@ -20,27 +22,47 @@ export function PlaceRowActions({
   const [pending, startTransition] = useTransition();
 
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      disabled={pending}
-      onClick={() =>
-        startTransition(async () => {
-          const result = await setPlaceActive(
-            organizationId,
-            placeId,
-            !isActive,
-          );
-          if (result.ok) {
-            toast.success(isActive ? `${name} archived` : `${name} restored`);
-          } else {
-            toast.error(result.error);
-          }
-        })
-      }
-    >
-      {isActive ? "Archive" : "Restore"}
-    </Button>
+    <div className="flex items-center gap-1.5 shrink-0">
+      <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+        <Link href={`/orgs/${organizationId}/places/${placeId}`}>
+          <Pencil className="size-3 text-muted-foreground" />
+          Edit
+        </Link>
+      </Button>
+
+      <Button
+        size="sm"
+        variant="ghost"
+        disabled={pending}
+        className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+        onClick={() =>
+          startTransition(async () => {
+            const result = await setPlaceActive(
+              organizationId,
+              placeId,
+              !isActive,
+            );
+            if (result.ok) {
+              toast.success(isActive ? `${name} archived` : `${name} restored`);
+            } else {
+              toast.error(result.error);
+            }
+          })
+        }
+      >
+        {isActive ? (
+          <>
+            <Archive className="size-3 text-muted-foreground" />
+            Archive
+          </>
+        ) : (
+          <>
+            <RotateCcw className="size-3" />
+            Restore
+          </>
+        )}
+      </Button>
+    </div>
   );
 }
 
