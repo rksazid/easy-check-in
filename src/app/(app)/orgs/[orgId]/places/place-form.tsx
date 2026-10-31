@@ -10,6 +10,7 @@ import {
   LocationPicker,
   type PickedLocation,
 } from "@/components/map/location-picker-loader";
+import { getPlaceIconComponent } from "@/components/place-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +45,7 @@ export function PlaceForm({
   needsApproval = false,
 }: {
   organizationId: string;
-  placeTypes: { id: number; name: string }[];
+  placeTypes: { id: number; name: string; icon?: string | null }[];
   initial: PlaceFormValues;
   /** True when the person adding this place cannot approve it themselves. */
   needsApproval?: boolean;
@@ -115,11 +116,17 @@ export function PlaceForm({
               <SelectValue placeholder="Choose one" />
             </SelectTrigger>
             <SelectContent>
-              {placeTypes.map((type) => (
-                <SelectItem key={type.id} value={String(type.id)}>
-                  {type.name}
-                </SelectItem>
-              ))}
+              {placeTypes.map((type) => {
+                const Icon = getPlaceIconComponent(type.icon, type.name);
+                return (
+                  <SelectItem key={type.id} value={String(type.id)}>
+                    <div className="flex items-center gap-2">
+                      <Icon className="size-4 text-muted-foreground shrink-0" />
+                      <span>{type.name}</span>
+                    </div>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           <input type="hidden" name="placeTypeId" value={placeTypeId} />

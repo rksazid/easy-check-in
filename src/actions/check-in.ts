@@ -77,6 +77,7 @@ export type ActiveCheckIn = {
   placeId: string;
   placeName: string;
   placeTypeName: string;
+  placeTypeIcon?: string | null;
   placeImageUrl: string | null;
   organizationName: string;
   latitude: number;
@@ -118,6 +119,7 @@ export async function getUserActiveCheckIn(
       placeId: places.id,
       placeName: places.name,
       placeTypeName: placeTypes.name,
+      placeTypeIcon: placeTypes.icon,
       placeImageUrl: places.imageUrl,
       organizationName: organization.name,
       latitude: places.latitude,
@@ -155,6 +157,7 @@ export type NearbyPlace = {
   id: string;
   name: string;
   typeName: string;
+  typeIcon?: string | null;
   imageUrl: string | null;
   organizationName: string;
   distanceM: number;
@@ -181,6 +184,7 @@ export async function findNearbyPlacesForUser(
       id: places.id,
       name: places.name,
       typeName: placeTypes.name,
+      typeIcon: placeTypes.icon,
       imageUrl: places.imageUrl,
       organizationName: organization.name,
       latitude: places.latitude,
@@ -209,6 +213,7 @@ export async function findNearbyPlacesForUser(
         id: place.id,
         name: place.name,
         typeName: place.typeName,
+        typeIcon: place.typeIcon,
         imageUrl: place.imageUrl,
         organizationName: place.organizationName,
         radiusM: place.radiusM,
@@ -326,6 +331,7 @@ export type ManualCheckInPlace = {
   id: string;
   name: string;
   typeName: string;
+  typeIcon?: string | null;
   imageUrl: string | null;
   organizationId: string;
   organizationName: string;
@@ -349,6 +355,7 @@ export async function getManualCheckInPlacesForUser(
       id: places.id,
       name: places.name,
       typeName: placeTypes.name,
+      typeIcon: placeTypes.icon,
       imageUrl: places.imageUrl,
       organizationId: places.organizationId,
       organizationName: organization.name,

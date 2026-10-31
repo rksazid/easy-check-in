@@ -19,6 +19,7 @@ import { grantLocationConsent } from "@/actions/consent";
 import { CheckInPhotoGallery } from "@/components/check-in-photo-gallery";
 import { Elapsed } from "@/components/elapsed";
 import { ManualCheckInModal } from "@/components/manual-check-in-modal";
+import { PlaceIcon } from "@/components/place-icon";
 import { RingButton } from "@/components/ring-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,13 +116,13 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
   return (
     <div className="flex flex-col items-center gap-8 py-2 text-center">
       <div className="flex flex-col items-center gap-2">
-        {active.placeImageUrl ? (
-          <img
-            src={active.placeImageUrl}
-            alt={active.placeName}
-            className="border-border/70 size-16 rounded-xl border object-cover shadow-sm"
-          />
-        ) : null}
+        <PlaceIcon
+          imageUrl={active.placeImageUrl}
+          icon={active.placeTypeIcon}
+          typeName={active.placeTypeName}
+          name={active.placeName}
+          size="xl"
+        />
         <div className="space-y-1">
           <p className="text-muted-foreground text-sm">Checked in at</p>
           <h1 className="text-3xl font-semibold tracking-tight">
@@ -302,13 +303,13 @@ function NotCheckedIn({
       ) : nearest ? (
         <>
           <div className="flex flex-col items-center gap-2">
-            {nearest.imageUrl ? (
-              <img
-                src={nearest.imageUrl}
-                alt={nearest.name}
-                className="border-border/70 size-16 rounded-xl border object-cover shadow-sm"
-              />
-            ) : null}
+            <PlaceIcon
+              imageUrl={nearest.imageUrl}
+              icon={nearest.typeIcon}
+              typeName={nearest.typeName}
+              name={nearest.name}
+              size="xl"
+            />
             <div className="space-y-1">
               <h1 className="text-3xl font-semibold tracking-tight">
                 {nearest.name}
@@ -372,13 +373,13 @@ function NotCheckedIn({
                   className="flex items-center justify-between gap-3 px-4 py-3"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    {place.imageUrl ? (
-                      <img
-                        src={place.imageUrl}
-                        alt={place.name}
-                        className="border-border/70 size-9 shrink-0 rounded-md border object-cover"
-                      />
-                    ) : null}
+                    <PlaceIcon
+                      imageUrl={place.imageUrl}
+                      icon={place.typeIcon}
+                      typeName={place.typeName}
+                      name={place.name}
+                      size="sm"
+                    />
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium">
                         {place.name}

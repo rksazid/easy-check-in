@@ -1,10 +1,11 @@
 import { asc, desc, eq } from "drizzle-orm";
 import Link from "next/link";
-import { Compass, MapPin, Plus } from "lucide-react";
+import { Compass, Plus } from "lucide-react";
 
 import { PendingPlaceActions, PlaceRowActions } from "./place-row-actions";
 import { Avatar } from "@/components/avatar";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
+import { PlaceIcon } from "@/components/place-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
@@ -49,6 +50,7 @@ export default async function PlacesPage({
       status: places.status,
       createdBy: places.createdBy,
       typeName: placeTypes.name,
+      typeIcon: placeTypes.icon,
       proposerName: user.name,
       proposerImage: user.image,
     })
@@ -123,17 +125,13 @@ export default async function PlacesPage({
                 className="flex flex-wrap items-center justify-between gap-3 p-4 transition-colors hover:bg-muted/30"
               >
                 <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                  {place.imageUrl ? (
-                    <img
-                      src={place.imageUrl}
-                      alt={place.name}
-                      className="border-border/70 size-12 shrink-0 rounded-xl border object-cover shadow-xs"
-                    />
-                  ) : (
-                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/50 text-muted-foreground">
-                      <MapPin className="size-5 text-muted-foreground/70" />
-                    </div>
-                  )}
+                  <PlaceIcon
+                    imageUrl={place.imageUrl}
+                    icon={place.typeIcon}
+                    typeName={place.typeName}
+                    name={place.name}
+                    size="md"
+                  />
                   <div className="min-w-0 space-y-1">
                     <p className="flex flex-wrap items-center gap-2 font-medium">
                       {place.name}
@@ -187,17 +185,13 @@ export default async function PlacesPage({
                 className="flex flex-wrap items-center justify-between gap-4 p-4 transition-colors hover:bg-muted/30"
               >
                 <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                  {place.imageUrl ? (
-                    <img
-                      src={place.imageUrl}
-                      alt={place.name}
-                      className="border-border/70 size-12 shrink-0 rounded-xl border object-cover shadow-xs"
-                    />
-                  ) : (
-                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/50 text-muted-foreground">
-                      <MapPin className="size-5 text-muted-foreground/70" />
-                    </div>
-                  )}
+                  <PlaceIcon
+                    imageUrl={place.imageUrl}
+                    icon={place.typeIcon}
+                    typeName={place.typeName}
+                    name={place.name}
+                    size="md"
+                  />
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       {isAdmin ? (

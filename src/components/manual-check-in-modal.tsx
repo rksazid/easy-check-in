@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Hand, MapPin, Search } from "lucide-react";
+import { Hand, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { manualCheckIn, type ManualCheckInPlace } from "@/actions/check-in";
+import { PlaceIcon } from "@/components/place-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -135,17 +136,13 @@ export function ManualCheckInModal({
                       className="flex items-center justify-between gap-3 rounded-lg border border-border/70 p-3 hover:bg-muted/40 transition-colors"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        {place.imageUrl ? (
-                          <img
-                            src={place.imageUrl}
-                            alt={place.name}
-                            className="size-10 shrink-0 rounded-md border border-border/70 object-cover"
-                          />
-                        ) : (
-                          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border/70 bg-muted">
-                            <MapPin className="size-4 text-muted-foreground" />
-                          </div>
-                        )}
+                        <PlaceIcon
+                          imageUrl={place.imageUrl}
+                          icon={place.typeIcon}
+                          typeName={place.typeName}
+                          name={place.name}
+                          size="sm"
+                        />
                         <div className="min-w-0 space-y-0.5">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="text-xs font-semibold truncate">

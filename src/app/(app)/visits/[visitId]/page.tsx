@@ -8,6 +8,7 @@ import { Elapsed } from "@/components/elapsed";
 import { LocalTime } from "@/components/local-time";
 import { ManualCheckInDecisionButton } from "@/components/manual-check-in-decision-button";
 import { VisitMap } from "@/components/map/visit-map-loader";
+import { PlaceIcon } from "@/components/place-icon";
 import { Badge } from "@/components/ui/badge";
 import { formatDistance } from "@/lib/geo/haversine";
 import { getVisitDetail } from "@/lib/visits";
@@ -65,13 +66,13 @@ export default async function VisitPage({
       />
 
       <div className="flex items-start gap-4">
-        {visit.placeImageUrl ? (
-          <img
-            src={visit.placeImageUrl}
-            alt={visit.placeName}
-            className="border-border/70 size-16 shrink-0 rounded-xl border object-cover shadow-sm"
-          />
-        ) : null}
+        <PlaceIcon
+          imageUrl={visit.placeImageUrl}
+          icon={visit.typeIcon}
+          typeName={visit.typeName}
+          name={visit.placeName}
+          size="xl"
+        />
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-semibold tracking-tight">

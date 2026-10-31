@@ -155,6 +155,7 @@ export type VisitDetail = {
   organizationName: string;
   placeName: string;
   typeName: string;
+  typeIcon?: string | null;
   placeImageUrl: string | null;
   placeAddress: string | null;
   placeLatitude: number;
@@ -209,6 +210,7 @@ export async function getVisitDetail(visitId: string): Promise<VisitDetail> {
       organizationName: organization.name,
       placeName: places.name,
       typeName: placeTypes.name,
+      typeIcon: placeTypes.icon,
       placeImageUrl: places.imageUrl,
       placeAddress: places.address,
       placeLatitude: places.latitude,
