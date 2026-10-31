@@ -437,11 +437,110 @@ export async function inviteUser(
   return { ok: true };
 }
 
+export async function updateMemberRole(
+  organizationId: string,
+  memberId: string,
+  newRole: "admin" | "manager" | "member",
+): Promise<ActionResult> {
+  const { session, isSuperAdmin, isOwner, isAdmin } =
+    await requireOrgAdmin(organizationId);
+
+  if (!isAdmin && !isSuperAdmin) {
+    return { ok: false, error: "Only administrators can change member roles." };
+  }
+
+  const [targetMember] = await db
+    .select({
+      id: member.id,
+      userId: member.userId,
+      role: member.role,
+    })
+    .from(member)
+    .where(
+      and(
+        eq(member.id, memberId),
+        eq(member.organizationId, organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!targetMember) {
+    return { ok: false, error: "Member not found in this organization." };
+  }
+
+  if (targetMember.role === "owner") {
+    return { ok: false, error: "The owner's role cannot be changed." };
+  }
+
+  if (targetMember.userId === session.user.id) {
+    return { ok: false, error: "You cannot change your own role." };
+  }
+
+  if (!isOwner && !isSuperAdmin) {
+    if (newRole === "admin") {
+      return {
+        ok: false,
+        error:
+          "Only the organization owner or super admin can assign the Admin role.",
+      };
+    }
+    if (targetMember.role === "admin") {
+      return {
+        ok: false,
+        error:
+          "Only the organization owner or super admin can change an Administrator's role.",
+      };
+    }
+  }
+
+  try {
+    await db
+      .update(member)
+      .set({ role: newRole })
+      .where(
+        and(
+          eq(member.id, memberId),
+          eq(member.organizationId, organizationId),
+        ),
+      );
+  } catch (error) {
+    return failure(error, "Could not update member role.");
+  }
+
+  revalidatePath(`/admin/${organizationId}`);
+  revalidatePath(`/orgs/${organizationId}`);
+  return { ok: true };
+}
+
 export async function removeMemberFromOrg(
   organizationId: string,
   memberIdOrEmail: string,
 ): Promise<ActionResult> {
-  await requireOrgAdmin(organizationId);
+  const { session, isSuperAdmin, isOwner } = await requireOrgAdmin(organizationId);
+
+  // If passed an id, inspect role
+  const [target] = await db
+    .select({ id: member.id, userId: member.userId, role: member.role })
+    .from(member)
+    .where(
+      and(
+        eq(member.id, memberIdOrEmail),
+        eq(member.organizationId, organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (target) {
+    if (target.role === "owner") {
+      return { ok: false, error: "The organization owner cannot be removed." };
+    }
+    if (target.userId === session.user.id) {
+      return { ok: false, error: "You cannot remove yourself from the organization." };
+    }
+    if (target.role === "admin" && !isOwner && !isSuperAdmin) {
+      return { ok: false, error: "Only the owner or a super admin can remove another admin." };
+    }
+  }
 
   try {
     await auth.api.removeMember({

@@ -1,11 +1,13 @@
 import { asc, eq, sql } from "drizzle-orm";
 import Link from "next/link";
+import { Users } from "lucide-react";
 
 import { CreateOrganizationForm } from "./create-organization-form";
 import { PlaceTypeManager } from "./place-type-manager";
 import { listAllPlaceTypesForAdmin } from "@/actions/place-types";
 import { LocalTime } from "@/components/local-time";
 import { OrgIcon } from "@/components/org-icon";
+import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
 import { member, organization, organizationSettings } from "@/lib/db/schema";
 import { requireSuperAdmin } from "@/lib/session";
@@ -46,11 +48,19 @@ export default async function SuperAdminPage() {
 
   return (
     <div className="space-y-10">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Super admin</h1>
-        <p className="text-muted-foreground text-sm">
-          Create organizations, manage kinds of place, and configure the platform.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Super admin</h1>
+          <p className="text-muted-foreground text-sm">
+            Create organizations, manage kinds of place, and configure the platform.
+          </p>
+        </div>
+        <Button asChild size="sm">
+          <Link href="/admin">
+            <Users className="size-4 mr-1.5" />
+            User Management & Admin Hub
+          </Link>
+        </Button>
       </div>
 
       <section className="space-y-3">

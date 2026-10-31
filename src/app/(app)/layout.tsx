@@ -1,14 +1,33 @@
 import Link from "next/link";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { Avatar } from "@/components/avatar";
 import { AppNav } from "@/components/app-nav";
 import { BrandLockup } from "@/components/brand";
 import { OfflineBanner } from "@/components/offline-banner";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { db } from "@/lib/db/client";
+import { member } from "@/lib/db/schema";
 import { isSuperAdmin, requireSession } from "@/lib/session";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();
+  const superAdmin = isSuperAdmin(session.user);
+
+  let hasOrgAdminAccess = false;
+  if (!superAdmin) {
+    const [managed] = await db
+      .select({ id: member.id })
+      .from(member)
+      .where(
+        and(
+          eq(member.userId, session.user.id),
+          inArray(member.role, ["owner", "admin", "manager"]),
+        ),
+      )
+      .limit(1);
+    hasOrgAdminAccess = Boolean(managed);
+  }
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -27,7 +46,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </Link>
 
           <div className="flex items-center gap-2">
-            <AppNav superAdmin={isSuperAdmin(session.user)} />
+            <AppNav
+              superAdmin={superAdmin}
+              hasOrgAdminAccess={hasOrgAdminAccess}
+            />
             <ThemeToggle />
             <Link
               href="/profile"

@@ -5,6 +5,7 @@ import {
   CircleDot,
   History,
   Shield,
+  ShieldCheck,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -38,15 +39,31 @@ const SUPER_ADMIN_ITEM: NavItem = {
   icon: Shield,
 };
 
+const ORG_ADMIN_ITEM: NavItem = {
+  href: "/admin",
+  label: "Admin",
+  icon: ShieldCheck,
+};
+
 /**
  * One nav, laid out two ways. On a phone it is a fixed tab bar at the bottom,
  * where a thumb already rests; from the `sm` breakpoint up it becomes a row of
  * links inside the header. Rendering two separate navs instead would put the
  * same links in the page twice for anyone using a screen reader.
  */
-export function AppNav({ superAdmin }: { superAdmin: boolean }) {
+export function AppNav({
+  superAdmin,
+  hasOrgAdminAccess = false,
+}: {
+  superAdmin: boolean;
+  hasOrgAdminAccess?: boolean;
+}) {
   const pathname = usePathname();
-  const items = superAdmin ? [...NAV_ITEMS, SUPER_ADMIN_ITEM] : NAV_ITEMS;
+  const items = superAdmin
+    ? [...NAV_ITEMS, SUPER_ADMIN_ITEM]
+    : hasOrgAdminAccess
+      ? [...NAV_ITEMS, ORG_ADMIN_ITEM]
+      : NAV_ITEMS;
 
   const isCurrent = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);

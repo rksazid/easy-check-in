@@ -36,7 +36,7 @@ export async function generateMetadata({
   params,
 }: PageProps<"/admin/[orgId]/check-ins">) {
   const { orgId } = await params;
-  const { organization } = await requireOrgAdmin(orgId);
+  const { organization } = await requireOrgAdmin(orgId, { allowManager: true });
   return { title: `Check-ins at ${organization.name}` };
 }
 
@@ -46,7 +46,7 @@ export default async function CheckInLogPage({
 }: PageProps<"/admin/[orgId]/check-ins">) {
   const { orgId } = await params;
   const query = await searchParams;
-  const { organization } = await requireOrgAdmin(orgId);
+  const { organization } = await requireOrgAdmin(orgId, { allowManager: true });
 
   await sweepForgottenCheckIns();
 

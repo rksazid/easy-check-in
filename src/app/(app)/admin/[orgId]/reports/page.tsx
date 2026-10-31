@@ -36,7 +36,7 @@ export async function generateMetadata({
   params,
 }: PageProps<"/admin/[orgId]/reports">) {
   const { orgId } = await params;
-  const { organization } = await requireOrgAdmin(orgId);
+  const { organization } = await requireOrgAdmin(orgId, { allowManager: true });
   return { title: `Reports for ${organization.name}` };
 }
 
@@ -46,7 +46,7 @@ export default async function ReportsPage({
 }: PageProps<"/admin/[orgId]/reports">) {
   const { orgId } = await params;
   const query = await searchParams;
-  const { organization } = await requireOrgAdmin(orgId);
+  const { organization } = await requireOrgAdmin(orgId, { allowManager: true });
 
   // Any visit left open past the cap is closed first, so totals are complete.
   await sweepForgottenCheckIns();
