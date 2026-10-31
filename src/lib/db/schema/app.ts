@@ -130,6 +130,8 @@ export const places = pgTable(
     name: text("name").notNull(),
     /** Reverse-geocoded when the pin was dropped; a label, never authoritative. */
     address: text("address"),
+    /** Optional photo of the place (front facade, entrance, building). */
+    imageUrl: text("image_url"),
     latitude: doublePrecision("latitude").notNull(),
     longitude: doublePrecision("longitude").notNull(),
     /** How close someone must be to check in here. */
@@ -261,6 +263,29 @@ export const locationCaptures = pgTable(
 );
 
 /**
+ * Photos attached to a check-in (e.g. proof of attendance, workout photos, desk setup).
+ * A check-in may have multiple photos uploaded during or after the visit.
+ */
+export const checkInImages = pgTable(
+  "check_in_images",
+  {
+    id: id(),
+    checkInId: text("check_in_id")
+      .notNull()
+      .references(() => checkIns.id, { onDelete: "cascade" }),
+    imageUrl: text("image_url").notNull(),
+    caption: text("caption"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("check_in_images_check_in_idx").on(
+      table.checkInId,
+      table.createdAt,
+    ),
+  ],
+);
+
+/**
  * A label an organization puts on its people, usually the project or team they
  * are on at the moment. Tags belong to one organization and mean nothing
  * outside it, so the same person can be "Backend" in one and "Night shift" in
@@ -274,6 +299,7 @@ export const tags = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    color: text("color").notNull().default("slate"),
     createdAt: utcTimestamp("created_at").notNull().defaultNow(),
     createdBy: text("created_by").references(() => user.id, {
       onDelete: "set null",

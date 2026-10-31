@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 
 import { Avatar } from "@/components/avatar";
 import { LocalTime } from "@/components/local-time";
+import { OrgIcon } from "@/components/org-icon";
+import { TagBadge } from "@/components/tag-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
@@ -37,6 +39,7 @@ export default async function OrganizationPage({
     .select({
       name: organization.name,
       slug: organization.slug,
+      logo: organization.logo,
       createdAt: organization.createdAt,
       timezone: organizationSettings.timezone,
     })
@@ -66,7 +69,10 @@ export default async function OrganizationPage({
         >
           Back to organizations
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">{org.name}</h1>
+        <div className="flex items-center gap-3">
+          <OrgIcon logo={org.logo} name={org.name} size="lg" />
+          <h1 className="text-2xl font-semibold tracking-tight">{org.name}</h1>
+        </div>
         <p className="text-muted-foreground text-sm">
           Started <LocalTime value={org.createdAt} format="date" />. Reporting
           months run on <span className="readout">{org.timezone ?? "UTC"}</span>.
@@ -101,9 +107,7 @@ export default async function OrganizationPage({
           <h2 className="text-sm font-semibold">Tags in use</h2>
           <div className="flex flex-wrap gap-1.5">
             {orgTags.map((tag) => (
-              <Badge key={tag.id} variant="outline">
-                {tag.name}
-              </Badge>
+              <TagBadge key={tag.id} name={tag.name} color={tag.color} />
             ))}
           </div>
         </section>
@@ -135,9 +139,7 @@ export default async function OrganizationPage({
                 {(memberTagMap.get(row.memberId) ?? []).length > 0 ? (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {(memberTagMap.get(row.memberId) ?? []).map((tag) => (
-                      <Badge key={tag.id} variant="secondary">
-                        {tag.name}
-                      </Badge>
+                      <TagBadge key={tag.id} name={tag.name} color={tag.color} />
                     ))}
                   </div>
                 ) : null}

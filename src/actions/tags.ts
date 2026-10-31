@@ -10,11 +10,14 @@ import { requireOrgAdmin } from "@/lib/org";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
-const nameSchema = z
-  .string()
-  .trim()
-  .min(1, "Give the tag a name.")
-  .max(40, "Tag names are at most 40 characters.");
+const tagSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Give the tag a name.")
+    .max(40, "Tag names are at most 40 characters."),
+  color: z.string().trim().max(20).optional().default("slate"),
+});
 
 function refresh(organizationId: string) {
   revalidatePath(`/admin/${organizationId}`);
@@ -29,7 +32,10 @@ export async function createTag(
 ): Promise<ActionResult> {
   const { session } = await requireOrgAdmin(organizationId);
 
-  const parsed = nameSchema.safeParse(formData.get("name"));
+  const parsed = tagSchema.safeParse({
+    name: formData.get("name"),
+    color: formData.get("color") || "slate",
+  });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
   }
@@ -37,12 +43,40 @@ export async function createTag(
   try {
     await db.insert(tags).values({
       organizationId,
-      name: parsed.data,
+      name: parsed.data.name,
+      color: parsed.data.color,
       createdBy: session.user.id,
     });
   } catch {
     // The case-insensitive unique index is what rejects a near-duplicate.
-    return { ok: false, error: `There is already a tag called ${parsed.data}.` };
+    return { ok: false, error: `There is already a tag called ${parsed.data.name}.` };
+  }
+
+  refresh(organizationId);
+  return { ok: true };
+}
+
+export async function updateTag(
+  organizationId: string,
+  tagId: string,
+  name: string,
+  color = "slate",
+): Promise<ActionResult> {
+  await requireOrgAdmin(organizationId);
+
+  const parsed = tagSchema.safeParse({ name, color });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  try {
+    await db
+      .update(tags)
+      .set({ name: parsed.data.name, color: parsed.data.color })
+      // Scoped by organization so a tag id from elsewhere cannot be renamed.
+      .where(and(eq(tags.id, tagId), eq(tags.organizationId, organizationId)));
+  } catch {
+    return { ok: false, error: `There is already a tag called ${parsed.data.name}.` };
   }
 
   refresh(organizationId);
@@ -54,25 +88,7 @@ export async function renameTag(
   tagId: string,
   name: string,
 ): Promise<ActionResult> {
-  await requireOrgAdmin(organizationId);
-
-  const parsed = nameSchema.safeParse(name);
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0].message };
-  }
-
-  try {
-    await db
-      .update(tags)
-      .set({ name: parsed.data })
-      // Scoped by organization so a tag id from elsewhere cannot be renamed.
-      .where(and(eq(tags.id, tagId), eq(tags.organizationId, organizationId)));
-  } catch {
-    return { ok: false, error: `There is already a tag called ${parsed.data}.` };
-  }
-
-  refresh(organizationId);
-  return { ok: true };
+  return updateTag(organizationId, tagId, name);
 }
 
 /** Deleting a tag takes it off everyone it was on, by cascade. */

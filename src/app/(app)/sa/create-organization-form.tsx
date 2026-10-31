@@ -1,12 +1,15 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { createOrganization, type ActionResult } from "@/actions/organizations";
+import { ORG_ICON_PRESETS } from "@/components/org-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TimezoneSelect } from "@/components/timezone-select";
+import { cn } from "@/lib/utils";
 
 function slugify(value: string) {
   return value
@@ -21,6 +24,14 @@ export function CreateOrganizationForm() {
   const slugRef = useRef<HTMLInputElement>(null);
   // A ref, not state: whether the slug was hand-edited never affects rendering.
   const slugEdited = useRef(false);
+  const [selectedIcon, setSelectedIcon] = useState<string>("dumbbell");
+  const [timezone, setTimezone] = useState(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch {
+      return "UTC";
+    }
+  });
 
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(
     createOrganization,
@@ -31,6 +42,8 @@ export function CreateOrganizationForm() {
     if (!state?.ok) return;
     toast.success("Organization created");
     formRef.current?.reset();
+    setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+    setSelectedIcon("dumbbell");
     slugEdited.current = false;
   }, [state]);
 
@@ -71,12 +84,42 @@ export function CreateOrganizationForm() {
       </div>
 
       <div className="space-y-2">
+        <Label>Icon</Label>
+        <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
+          {ORG_ICON_PRESETS.map((p) => {
+            const IconComponent = p.icon;
+            const isSelected = selectedIcon === p.value;
+            return (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => setSelectedIcon(p.value)}
+                disabled={pending}
+                title={p.label}
+                aria-label={`Select ${p.label} icon`}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 rounded-lg border p-2 text-center transition-colors",
+                  isSelected
+                    ? "border-primary bg-primary/10 text-primary ring-2 ring-primary/40 font-medium"
+                    : "border-input hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <IconComponent className="size-4 shrink-0" />
+                <span className="truncate text-[10px] w-full">{p.label.split("/")[0].trim()}</span>
+              </button>
+            );
+          })}
+        </div>
+        <input type="hidden" name="logo" value={selectedIcon} />
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="org-timezone">Time zone</Label>
-        <Input
+        <TimezoneSelect
           id="org-timezone"
           name="timezone"
-          defaultValue={Intl.DateTimeFormat().resolvedOptions().timeZone}
-          className="readout"
+          value={timezone}
+          onChange={setTimezone}
           disabled={pending}
         />
         <p className="text-muted-foreground text-xs">

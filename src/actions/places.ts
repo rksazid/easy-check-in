@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -14,6 +14,7 @@ import {
 import { requireMembership, requireOrgAdmin } from "@/lib/org";
 import { notifyPlaceProposed } from "@/lib/slack/notify";
 import { appUrl } from "@/lib/env";
+import { deleteStoredImage, saveUploadedImage } from "@/lib/storage/images";
 
 export type ActionResult =
   | { ok: true; placeId?: string; status?: string }
@@ -33,6 +34,7 @@ const placeSchema = z.object({
     .min(MIN_RADIUS_M, `The radius must be at least ${MIN_RADIUS_M} m.`)
     .max(MAX_RADIUS_M, `The radius must be at most ${MAX_RADIUS_M} m.`),
   address: z.string().trim().max(300).optional().nullable(),
+  imageUrl: z.string().trim().max(1000).optional().nullable(),
 });
 
 function readForm(formData: FormData) {
@@ -43,6 +45,7 @@ function readForm(formData: FormData) {
     longitude: formData.get("longitude"),
     radiusM: formData.get("radiusM"),
     address: formData.get("address") || null,
+    imageUrl: formData.get("imageUrl") || null,
   });
 }
 
@@ -54,9 +57,14 @@ function revalidatePlaces(organizationId: string) {
 
 export async function listPlaceTypes() {
   return db
-    .select({ id: placeTypes.id, name: placeTypes.name })
+    .select({
+      id: placeTypes.id,
+      name: placeTypes.name,
+      icon: placeTypes.icon,
+      sortOrder: placeTypes.sortOrder,
+    })
     .from(placeTypes)
-    .orderBy(placeTypes.sortOrder);
+    .orderBy(asc(placeTypes.sortOrder), asc(placeTypes.name));
 }
 
 /**
@@ -70,6 +78,18 @@ export async function createPlace(
   formData: FormData,
 ): Promise<ActionResult> {
   const { session, isAdmin } = await requireMembership(organizationId);
+
+  // Handle optional image file upload
+  const imageFile = formData.get("image");
+  if (imageFile instanceof File && imageFile.size > 0) {
+    try {
+      const stored = await saveUploadedImage(imageFile, "places");
+      formData.set("imageUrl", stored.url);
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  }
+
   const parsed = readForm(formData);
 
   if (!parsed.success) {
@@ -112,14 +132,13 @@ export async function updatePlace(
   formData: FormData,
 ): Promise<ActionResult> {
   const { session, isAdmin } = await requireMembership(organizationId);
-  const parsed = readForm(formData);
-
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0].message };
-  }
 
   const [existing] = await db
-    .select({ createdBy: places.createdBy, status: places.status })
+    .select({
+      createdBy: places.createdBy,
+      status: places.status,
+      imageUrl: places.imageUrl,
+    })
     .from(places)
     .where(
       and(eq(places.id, placeId), eq(places.organizationId, organizationId)),
@@ -136,6 +155,33 @@ export async function updatePlace(
       ok: false,
       error: "Only an admin can change a place once it has been reviewed.",
     };
+  }
+
+  // Handle image remove or update
+  const removeImage = formData.get("removeImage") === "true";
+  const imageFile = formData.get("image");
+
+  if (removeImage) {
+    if (existing.imageUrl) {
+      await deleteStoredImage(existing.imageUrl);
+    }
+    formData.set("imageUrl", "");
+  } else if (imageFile instanceof File && imageFile.size > 0) {
+    try {
+      const stored = await saveUploadedImage(imageFile, "places");
+      if (existing.imageUrl) {
+        await deleteStoredImage(existing.imageUrl);
+      }
+      formData.set("imageUrl", stored.url);
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  }
+
+  const parsed = readForm(formData);
+
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
   }
 
   await db

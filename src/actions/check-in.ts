@@ -1,10 +1,11 @@
 "use server";
 
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import {
+  checkInImages,
   checkIns,
   DEFAULT_FORGOT_CHECKOUT_HOURS,
   locationCaptures,
@@ -17,6 +18,7 @@ import { evaluateProximity, isSuggestable } from "@/lib/geo/check-in-rules";
 import { distanceMeters } from "@/lib/geo/haversine";
 import { requireOrgAdmin } from "@/lib/org";
 import { requireSession } from "@/lib/session";
+import { deleteStoredImage, saveUploadedImage } from "@/lib/storage/images";
 
 export type Position = {
   latitude: number;
@@ -60,21 +62,48 @@ export async function sweepForgottenCheckIns(): Promise<number> {
   return closed.length;
 }
 
+export type CheckInImageItem = {
+  id: string;
+  checkInId: string;
+  imageUrl: string;
+  caption: string | null;
+  createdAt: Date;
+};
+
 export type ActiveCheckIn = {
   id: string;
   checkedInAt: Date;
   placeId: string;
   placeName: string;
   placeTypeName: string;
+  placeImageUrl: string | null;
   organizationName: string;
   latitude: number;
   longitude: number;
   radiusM: number;
   captureCount: number;
+  images: CheckInImageItem[];
 };
 
-export async function getActiveCheckIn(): Promise<ActiveCheckIn | null> {
-  const session = await requireSession();
+export async function getCheckInImages(
+  checkInId: string,
+): Promise<CheckInImageItem[]> {
+  return db
+    .select({
+      id: checkInImages.id,
+      checkInId: checkInImages.checkInId,
+      imageUrl: checkInImages.imageUrl,
+      caption: checkInImages.caption,
+      createdAt: checkInImages.createdAt,
+    })
+    .from(checkInImages)
+    .where(eq(checkInImages.checkInId, checkInId))
+    .orderBy(asc(checkInImages.createdAt));
+}
+
+export async function getUserActiveCheckIn(
+  userId: string,
+): Promise<ActiveCheckIn | null> {
   await sweepForgottenCheckIns();
 
   const [row] = await db
@@ -84,6 +113,7 @@ export async function getActiveCheckIn(): Promise<ActiveCheckIn | null> {
       placeId: places.id,
       placeName: places.name,
       placeTypeName: placeTypes.name,
+      placeImageUrl: places.imageUrl,
       organizationName: organization.name,
       latitude: places.latitude,
       longitude: places.longitude,
@@ -98,17 +128,25 @@ export async function getActiveCheckIn(): Promise<ActiveCheckIn | null> {
     .innerJoin(placeTypes, eq(places.placeTypeId, placeTypes.id))
     .innerJoin(organization, eq(checkIns.organizationId, organization.id))
     .where(
-      and(eq(checkIns.userId, session.user.id), isNull(checkIns.checkedOutAt)),
+      and(eq(checkIns.userId, userId), isNull(checkIns.checkedOutAt)),
     )
     .limit(1);
 
-  return row ?? null;
+  if (!row) return null;
+  const images = await getCheckInImages(row.id);
+  return { ...row, images };
+}
+
+export async function getActiveCheckIn(): Promise<ActiveCheckIn | null> {
+  const session = await requireSession();
+  return getUserActiveCheckIn(session.user.id);
 }
 
 export type NearbyPlace = {
   id: string;
   name: string;
   typeName: string;
+  imageUrl: string | null;
   organizationName: string;
   distanceM: number;
   radiusM: number;
@@ -118,15 +156,14 @@ export type NearbyPlace = {
 };
 
 /** Active places across every organization the user belongs to, nearest first. */
-export async function findNearbyPlaces(
+export async function findNearbyPlacesForUser(
+  userId: string,
   position: Position,
 ): Promise<NearbyPlace[]> {
-  const session = await requireSession();
-
   const memberships = await db
     .select({ organizationId: member.organizationId })
     .from(member)
-    .where(eq(member.userId, session.user.id));
+    .where(eq(member.userId, userId));
 
   if (memberships.length === 0) return [];
 
@@ -135,6 +172,7 @@ export async function findNearbyPlaces(
       id: places.id,
       name: places.name,
       typeName: placeTypes.name,
+      imageUrl: places.imageUrl,
       organizationName: organization.name,
       latitude: places.latitude,
       longitude: places.longitude,
@@ -162,6 +200,7 @@ export async function findNearbyPlaces(
         id: place.id,
         name: place.name,
         typeName: place.typeName,
+        imageUrl: place.imageUrl,
         organizationName: place.organizationName,
         radiusM: place.radiusM,
         distanceM: verdict.distanceM,
@@ -174,11 +213,19 @@ export async function findNearbyPlaces(
     .sort((a, b) => a.distanceM - b.distanceM);
 }
 
-export async function checkIn(
+export async function findNearbyPlaces(
+  position: Position,
+): Promise<NearbyPlace[]> {
+  const session = await requireSession();
+  return findNearbyPlacesForUser(session.user.id, position);
+}
+
+export async function checkInUser(
+  userId: string,
   placeId: string,
   position: Position,
+  checkedInAt?: Date,
 ): Promise<CheckInResult> {
-  const session = await requireSession();
   await sweepForgottenCheckIns();
 
   // The place must belong to an organization the user is in; joining through
@@ -198,7 +245,7 @@ export async function checkIn(
       member,
       and(
         eq(member.organizationId, places.organizationId),
-        eq(member.userId, session.user.id),
+        eq(member.userId, userId),
       ),
     )
     .where(eq(places.id, placeId))
@@ -229,9 +276,10 @@ export async function checkIn(
     const [created] = await db
       .insert(checkIns)
       .values({
-        userId: session.user.id,
+        userId,
         placeId: place.id,
         organizationId: place.organizationId,
+        checkedInAt: checkedInAt ?? new Date(),
       })
       .returning({ id: checkIns.id });
 
@@ -243,6 +291,7 @@ export async function checkIn(
       accuracyM: position.accuracyM,
       distanceM: verdict.distanceM,
       inside: verdict.inside,
+      createdAt: checkedInAt ?? new Date(),
     });
   } catch {
     // The partial unique index is what rejects a second open visit.
@@ -256,11 +305,20 @@ export async function checkIn(
   return { ok: true };
 }
 
-/** Optional mid-visit proof of presence. Never ends the visit. */
-export async function storeLocation(
+export async function checkIn(
+  placeId: string,
   position: Position,
 ): Promise<CheckInResult> {
-  const active = await getActiveCheckIn();
+  const session = await requireSession();
+  return checkInUser(session.user.id, placeId, position);
+}
+
+export async function storeLocationForUser(
+  userId: string,
+  position: Position,
+  capturedAt?: Date,
+): Promise<CheckInResult> {
+  const active = await getUserActiveCheckIn(userId);
   if (!active) return { ok: false, error: "You are not checked in." };
 
   const distanceM = distanceMeters(active, position);
@@ -273,22 +331,26 @@ export async function storeLocation(
     accuracyM: position.accuracyM,
     distanceM,
     inside: distanceM <= active.radiusM,
+    createdAt: capturedAt ?? new Date(),
   });
 
   revalidatePath("/");
   return { ok: true };
 }
 
-/**
- * Ends the visit. A position is recorded when one is offered, but checking out
- * never depends on it. Someone who has already left, or who declines the
- * permission, still needs to be able to close their visit.
- */
-export async function checkOut(
-  position?: Position | null,
+/** Optional mid-visit proof of presence. Never ends the visit. */
+export async function storeLocation(
+  position: Position,
 ): Promise<CheckInResult> {
   const session = await requireSession();
+  return storeLocationForUser(session.user.id, position);
+}
 
+export async function checkOutUser(
+  userId: string,
+  position?: Position | null,
+  checkedOutAt?: Date,
+): Promise<CheckInResult> {
   const [active] = await db
     .select({
       id: checkIns.id,
@@ -299,7 +361,7 @@ export async function checkOut(
     .from(checkIns)
     .innerJoin(places, eq(checkIns.placeId, places.id))
     .where(
-      and(eq(checkIns.userId, session.user.id), isNull(checkIns.checkedOutAt)),
+      and(eq(checkIns.userId, userId), isNull(checkIns.checkedOutAt)),
     )
     .limit(1);
 
@@ -315,16 +377,32 @@ export async function checkOut(
       accuracyM: position.accuracyM,
       distanceM,
       inside: distanceM <= active.radiusM,
+      createdAt: checkedOutAt ?? new Date(),
     });
   }
 
   await db
     .update(checkIns)
-    .set({ checkedOutAt: new Date(), checkoutReason: "manual" })
+    .set({
+      checkedOutAt: checkedOutAt ?? new Date(),
+      checkoutReason: "manual",
+    })
     .where(and(eq(checkIns.id, active.id), isNull(checkIns.checkedOutAt)));
 
   revalidatePath("/");
   return { ok: true };
+}
+
+/**
+ * Ends the visit. A position is recorded when one is offered, but checking out
+ * never depends on it. Someone who has already left, or who declines the
+ * permission, still needs to be able to close their visit.
+ */
+export async function checkOut(
+  position?: Position | null,
+): Promise<CheckInResult> {
+  const session = await requireSession();
+  return checkOutUser(session.user.id, position);
 }
 
 /** Lets an admin close a visit a member left open. */
@@ -384,4 +462,110 @@ export async function listMyRecentVisits(limit = 20): Promise<VisitSummary[]> {
     .where(eq(checkIns.userId, session.user.id))
     .orderBy(desc(checkIns.checkedInAt))
     .limit(limit);
+}
+
+/** Uploads one or more images attached to a check-in. */
+export async function uploadCheckInImages(
+  checkInId: string,
+  formData: FormData,
+): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const session = await requireSession();
+
+  const [visit] = await db
+    .select({
+      id: checkIns.id,
+      userId: checkIns.userId,
+      organizationId: checkIns.organizationId,
+    })
+    .from(checkIns)
+    .where(eq(checkIns.id, checkInId))
+    .limit(1);
+
+  if (!visit) {
+    return { ok: false, error: "Check-in not found." };
+  }
+
+  // Can upload if user owns the check-in or is admin
+  if (visit.userId !== session.user.id) {
+    const isSuper = session.user.role === "admin";
+    if (!isSuper) {
+      await requireOrgAdmin(visit.organizationId);
+    }
+  }
+
+  const files = formData
+    .getAll("images")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+
+  if (files.length === 0) {
+    return { ok: false, error: "Please select at least one image to upload." };
+  }
+
+  const caption = (formData.get("caption") as string)?.trim() || null;
+  let uploadedCount = 0;
+
+  for (const file of files) {
+    try {
+      const stored = await saveUploadedImage(file, "check-ins");
+      await db.insert(checkInImages).values({
+        checkInId,
+        imageUrl: stored.url,
+        caption,
+      });
+      uploadedCount++;
+    } catch (err) {
+      return {
+        ok: false,
+        error: `Uploaded ${uploadedCount} image(s), but failed on '${file.name}': ${(err as Error).message}`,
+      };
+    }
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/visits/${checkInId}`);
+  revalidatePath("/activity");
+  revalidatePath(`/admin/${visit.organizationId}/check-ins`);
+
+  return { ok: true, count: uploadedCount };
+}
+
+/** Deletes an image attached to a check-in. */
+export async function deleteCheckInImage(
+  imageId: string,
+): Promise<CheckInResult> {
+  const session = await requireSession();
+
+  const [image] = await db
+    .select({
+      id: checkInImages.id,
+      imageUrl: checkInImages.imageUrl,
+      checkInId: checkInImages.checkInId,
+      userId: checkIns.userId,
+      organizationId: checkIns.organizationId,
+    })
+    .from(checkInImages)
+    .innerJoin(checkIns, eq(checkInImages.checkInId, checkIns.id))
+    .where(eq(checkInImages.id, imageId))
+    .limit(1);
+
+  if (!image) {
+    return { ok: false, error: "Image not found." };
+  }
+
+  if (image.userId !== session.user.id) {
+    const isSuper = session.user.role === "admin";
+    if (!isSuper) {
+      await requireOrgAdmin(image.organizationId);
+    }
+  }
+
+  await deleteStoredImage(image.imageUrl);
+  await db.delete(checkInImages).where(eq(checkInImages.id, imageId));
+
+  revalidatePath("/");
+  revalidatePath(`/visits/${image.checkInId}`);
+  revalidatePath("/activity");
+  revalidatePath(`/admin/${image.organizationId}/check-ins`);
+
+  return { ok: true };
 }

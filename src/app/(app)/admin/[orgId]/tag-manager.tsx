@@ -6,14 +6,20 @@ import { toast } from "sonner";
 import {
   createTag,
   deleteTag,
-  renameTag,
+  updateTag,
   type ActionResult,
 } from "@/actions/tags";
-import { Badge } from "@/components/ui/badge";
+import { TagBadge, TAG_COLORS, type TagColorId } from "@/components/tag-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
-export type TagUsage = { tagId: string; name: string; people: number };
+export type TagUsage = {
+  tagId: string;
+  name: string;
+  color?: string | null;
+  people: number;
+};
 
 export function TagManager({
   organizationId,
@@ -23,6 +29,8 @@ export function TagManager({
   tags: TagUsage[];
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const [selectedColor, setSelectedColor] = useState<TagColorId>("blue");
+
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(
     createTag.bind(null, organizationId),
     null,
@@ -32,22 +40,52 @@ export function TagManager({
     if (!state?.ok) return;
     toast.success("Tag added");
     formRef.current?.reset();
+    setSelectedColor("blue");
   }, [state]);
 
   return (
     <div className="space-y-3">
-      <form ref={formRef} action={action} className="flex max-w-sm gap-2">
-        <Input
-          name="name"
-          placeholder="Project or team name"
-          aria-label="New tag name"
-          maxLength={40}
-          required
-          disabled={pending}
-        />
-        <Button type="submit" variant="outline" disabled={pending}>
-          Add
-        </Button>
+      <form ref={formRef} action={action} className="space-y-2.5 max-w-md">
+        <div className="flex gap-2">
+          <Input
+            name="name"
+            placeholder="Project or team name"
+            aria-label="New tag name"
+            maxLength={40}
+            required
+            disabled={pending}
+            className="flex-1"
+          />
+          <input type="hidden" name="color" value={selectedColor} />
+          <Button type="submit" variant="outline" disabled={pending}>
+            Add
+          </Button>
+        </div>
+
+        {/* Color Swatches */}
+        <div className="flex items-center gap-1.5 pt-0.5">
+          <span className="text-muted-foreground text-xs mr-1">Color:</span>
+          {TAG_COLORS.map((c) => {
+            const isSelected = selectedColor === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setSelectedColor(c.id)}
+                disabled={pending}
+                title={c.label}
+                aria-label={`Select ${c.label} color`}
+                className={cn(
+                  "size-5 rounded-full transition-transform",
+                  c.dot,
+                  isSelected
+                    ? "ring-2 ring-offset-2 ring-primary scale-110"
+                    : "opacity-70 hover:opacity-100 hover:scale-105"
+                )}
+              />
+            );
+          })}
+        </div>
       </form>
 
       {state && !state.ok ? (
@@ -84,13 +122,14 @@ function TagRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(tag.name);
+  const [color, setColor] = useState<string>(tag.color || "slate");
   const [pending, startTransition] = useTransition();
 
   function save() {
     startTransition(async () => {
-      const result = await renameTag(organizationId, tag.tagId, name);
+      const result = await updateTag(organizationId, tag.tagId, name, color);
       if (result.ok) {
-        toast.success("Tag renamed");
+        toast.success("Tag updated");
         setEditing(false);
       } else {
         toast.error(result.error);
@@ -101,7 +140,7 @@ function TagRow({
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
       {editing ? (
-        <>
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto flex-1">
           <Input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -110,7 +149,31 @@ function TagRow({
             className="max-w-48"
             disabled={pending}
           />
-          <span className="flex gap-2">
+
+          <div className="flex items-center gap-1.5">
+            {TAG_COLORS.map((c) => {
+              const isSelected = color === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setColor(c.id)}
+                  disabled={pending}
+                  title={c.label}
+                  aria-label={`Color ${c.label}`}
+                  className={cn(
+                    "size-4 rounded-full transition-transform",
+                    c.dot,
+                    isSelected
+                      ? "ring-2 ring-offset-2 ring-primary scale-110"
+                      : "opacity-60 hover:opacity-100"
+                  )}
+                />
+              );
+            })}
+          </div>
+
+          <span className="flex gap-2 ml-auto sm:ml-0">
             <Button size="sm" disabled={pending} onClick={save}>
               Save
             </Button>
@@ -120,17 +183,18 @@ function TagRow({
               disabled={pending}
               onClick={() => {
                 setName(tag.name);
+                setColor(tag.color || "slate");
                 setEditing(false);
               }}
             >
               Cancel
             </Button>
           </span>
-        </>
+        </div>
       ) : (
         <>
           <span className="flex items-center gap-2">
-            <Badge variant="secondary">{tag.name}</Badge>
+            <TagBadge name={tag.name} color={tag.color} />
             <span className="text-muted-foreground text-xs">
               {tag.people === 1 ? "1 person" : `${tag.people} people`}
             </span>
@@ -142,7 +206,7 @@ function TagRow({
               disabled={pending}
               onClick={() => setEditing(true)}
             >
-              Rename
+              Edit
             </Button>
             <Button
               size="sm"

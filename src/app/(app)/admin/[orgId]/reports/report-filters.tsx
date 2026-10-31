@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
+import { getTagColorStyles } from "@/components/tag-badge";
 import {
   Select,
   SelectContent,
@@ -25,7 +26,7 @@ export function ReportFilters({
   months: string[];
   places: { id: string; name: string }[];
   types: { id: number; name: string }[];
-  tags: { id: string; name: string }[];
+  tags: { id: string; name: string; color?: string | null }[];
   selected: {
     month: string;
     place: string | null;
@@ -107,7 +108,13 @@ export function ReportFilters({
             <SelectItem value={ANY}>All tags</SelectItem>
             {tags.map((tag) => (
               <SelectItem key={tag.id} value={tag.id}>
-                {tag.name}
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className={`size-2 rounded-full shrink-0 ${getTagColorStyles(tag.color).dot}`}
+                    aria-hidden="true"
+                  />
+                  <span>{tag.name}</span>
+                </span>
               </SelectItem>
             ))}
           </SelectContent>

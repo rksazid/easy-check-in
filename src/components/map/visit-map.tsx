@@ -35,7 +35,7 @@ export function VisitMap({
     .extend(points.map((p) => [p.latitude, p.longitude] as [number, number]));
 
   return (
-    <div className="border-border/70 h-56 overflow-hidden rounded-lg border">
+    <div className="border-border/70 isolate relative z-0 h-56 overflow-hidden rounded-lg border">
       <MapContainer
         bounds={bounds}
         scrollWheelZoom={false}

@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { admin, organization, username } from "better-auth/plugins";
+import { admin, bearer, organization, username } from "better-auth/plugins";
 
 // Relative (not "@/...") so the Better Auth CLI's loader can resolve this file.
 import { gravatarUrl, hasGravatar } from "./avatar";
@@ -75,6 +75,7 @@ export const auth = betterAuth({
       sendInvitationEmail: async () => {},
     }),
     admin(),
+    bearer(),
     // Must stay last: it forwards Set-Cookie from server actions to the response.
     nextCookies(),
   ],

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { Camera, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { createPlace, updatePlace, type ActionResult } from "@/actions/places";
@@ -29,6 +30,7 @@ export type PlaceFormValues = {
   id?: string;
   name: string;
   placeTypeId: number | null;
+  imageUrl?: string | null;
   latitude: number;
   longitude: number;
   radiusM: number;
@@ -48,6 +50,7 @@ export function PlaceForm({
   needsApproval?: boolean;
 }) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const editing = Boolean(initial.id);
 
   const [location, setLocation] = useState<PickedLocation>({
@@ -59,6 +62,11 @@ export function PlaceForm({
   const [placeTypeId, setPlaceTypeId] = useState(
     initial.placeTypeId ? String(initial.placeTypeId) : "",
   );
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    initial.imageUrl ?? null,
+  );
+  const [removeImage, setRemoveImage] = useState(false);
 
   const action = editing
     ? updatePlace.bind(null, organizationId, initial.id as string)
@@ -115,6 +123,110 @@ export function PlaceForm({
             </SelectContent>
           </Select>
           <input type="hidden" name="placeTypeId" value={placeTypeId} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="place-image">
+          Photo of the place{" "}
+          <span className="text-muted-foreground font-normal">(optional)</span>
+        </Label>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+          {previewUrl && !removeImage ? (
+            <div className="border-border/70 bg-muted/40 relative size-24 shrink-0 overflow-hidden rounded-lg border">
+              <img
+                src={previewUrl}
+                alt="Place preview"
+                className="size-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setRemoveImage(true);
+                  setPreviewUrl(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                className="bg-background/80 text-destructive hover:bg-background absolute right-1 top-1 rounded-md p-1 backdrop-blur"
+                title="Remove photo"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="border-border/70 bg-muted/20 text-muted-foreground flex size-24 shrink-0 items-center justify-center rounded-lg border border-dashed">
+              <ImageIcon className="stroke-[1.5] size-8" />
+            </div>
+          )}
+
+          <div className="flex-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={() => fileInputRef.current?.click()}
+                className="gap-1.5 text-xs"
+              >
+                <Camera className="size-3.5" />
+                {previewUrl && !removeImage ? "Change photo" : "Upload photo"}
+              </Button>
+              {previewUrl && !removeImage ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => {
+                    setRemoveImage(true);
+                    setPreviewUrl(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="text-destructive hover:text-destructive text-xs"
+                >
+                  Remove
+                </Button>
+              ) : null}
+            </div>
+
+            <input
+              ref={fileInputRef}
+              id="place-image"
+              name="image"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={pending}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setPreviewUrl(URL.createObjectURL(file));
+                  setRemoveImage(false);
+                }
+              }}
+            />
+
+            <input
+              type="hidden"
+              name="imageUrl"
+              value={
+                removeImage
+                  ? ""
+                  : previewUrl?.startsWith("http") ||
+                      previewUrl?.startsWith("/uploads")
+                    ? previewUrl
+                    : ""
+              }
+            />
+            {removeImage ? (
+              <input type="hidden" name="removeImage" value="true" />
+            ) : null}
+
+            <p className="text-muted-foreground text-xs">
+              Upload a front photo, entrance, or building view (JPEG, PNG, WebP up
+              to 10 MB).
+            </p>
+          </div>
         </div>
       </div>
 

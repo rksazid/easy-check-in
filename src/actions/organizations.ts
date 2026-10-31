@@ -44,7 +44,15 @@ const createOrganizationSchema = z.object({
     .min(2, "Slugs are at least 2 characters.")
     .max(40)
     .regex(slugPattern, "Use lowercase letters, numbers and dashes."),
-  timezone: z.string().trim().min(1).default("UTC"),
+  logo: z.string().trim().max(100).optional().default("building-2"),
+  timezone: z
+    .string()
+    .trim()
+    .min(1)
+    .default("UTC")
+    .refine((val) => Intl.supportedValuesOf("timeZone").includes(val), {
+      message: "Please select a valid time zone from the list.",
+    }),
 });
 
 export async function createOrganization(
@@ -56,6 +64,7 @@ export async function createOrganization(
   const parsed = createOrganizationSchema.safeParse({
     name: formData.get("name"),
     slug: formData.get("slug"),
+    logo: formData.get("logo") || "building-2",
     timezone: formData.get("timezone") || "UTC",
   });
 
@@ -65,11 +74,22 @@ export async function createOrganization(
 
   try {
     const created = await auth.api.createOrganization({
-      body: { name: parsed.data.name, slug: parsed.data.slug },
+      body: {
+        name: parsed.data.name,
+        slug: parsed.data.slug,
+        logo: parsed.data.logo,
+      },
       headers: await headers(),
     });
 
     if (created) {
+      if (parsed.data.logo) {
+        await db
+          .update(organization)
+          .set({ logo: parsed.data.logo })
+          .where(eq(organization.id, created.id));
+      }
+
       await db
         .insert(organizationSettings)
         .values({
@@ -82,6 +102,24 @@ export async function createOrganization(
     return failure(error, "Could not create that organization.");
   }
 
+  revalidatePath("/sa");
+  return { ok: true };
+}
+
+export async function setOrgLogo(
+  organizationId: string,
+  logo: string,
+): Promise<ActionResult> {
+  await requireOrgAdmin(organizationId);
+
+  await db
+    .update(organization)
+    .set({ logo })
+    .where(eq(organization.id, organizationId));
+
+  revalidatePath(`/admin/${organizationId}`);
+  revalidatePath(`/orgs/${organizationId}`);
+  revalidatePath("/orgs");
   revalidatePath("/sa");
   return { ok: true };
 }
@@ -465,6 +503,7 @@ export async function listJoinableOrganizations() {
       id: organization.id,
       name: organization.name,
       slug: organization.slug,
+      logo: organization.logo,
     })
     .from(organization)
     .where(excluded.length ? notInArray(organization.id, excluded) : undefined)

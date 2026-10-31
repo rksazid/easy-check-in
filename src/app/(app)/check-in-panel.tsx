@@ -14,6 +14,7 @@ import {
   type Position,
 } from "@/actions/check-in";
 import { grantLocationConsent } from "@/actions/consent";
+import { CheckInPhotoGallery } from "@/components/check-in-photo-gallery";
 import { Elapsed } from "@/components/elapsed";
 import { RingButton } from "@/components/ring-button";
 import { Button } from "@/components/ui/button";
@@ -107,14 +108,23 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
 
   return (
     <div className="flex flex-col items-center gap-8 py-2 text-center">
-      <div className="space-y-1">
-        <p className="text-muted-foreground text-sm">Checked in at</p>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          {active.placeName}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {active.organizationName}, {active.placeTypeName}
-        </p>
+      <div className="flex flex-col items-center gap-2">
+        {active.placeImageUrl ? (
+          <img
+            src={active.placeImageUrl}
+            alt={active.placeName}
+            className="border-border/70 size-16 rounded-xl border object-cover shadow-sm"
+          />
+        ) : null}
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-sm">Checked in at</p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {active.placeName}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {active.organizationName}, {active.placeTypeName}
+          </p>
+        </div>
       </div>
 
       <p className="text-4xl font-semibold">
@@ -144,6 +154,15 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
             ? `. ${active.captureCount} readings so far.`
             : "."}
         </p>
+      </div>
+
+      <div className="border-border/60 w-full max-w-sm border-t pt-4">
+        <CheckInPhotoGallery
+          checkInId={active.id}
+          initialImages={active.images}
+          canUpload={true}
+          canDelete={true}
+        />
       </div>
     </div>
   );
@@ -212,17 +231,26 @@ function NotCheckedIn() {
         </>
       ) : nearest ? (
         <>
-          <div className="space-y-1">
-            <h1 className="text-3xl font-semibold tracking-tight">
-              {nearest.name}
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              {nearest.organizationName},{" "}
-              <span className="readout">
-                {formatDistance(nearest.distanceM)}
-              </span>{" "}
-              away
-            </p>
+          <div className="flex flex-col items-center gap-2">
+            {nearest.imageUrl ? (
+              <img
+                src={nearest.imageUrl}
+                alt={nearest.name}
+                className="border-border/70 size-16 rounded-xl border object-cover shadow-sm"
+              />
+            ) : null}
+            <div className="space-y-1">
+              <h1 className="text-3xl font-semibold tracking-tight">
+                {nearest.name}
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                {nearest.organizationName},{" "}
+                <span className="readout">
+                  {formatDistance(nearest.distanceM)}
+                </span>{" "}
+                away
+              </p>
+            </div>
           </div>
 
           <RingButton
@@ -254,14 +282,23 @@ function NotCheckedIn() {
                   key={place.id}
                   className="flex items-center justify-between gap-3 px-4 py-3"
                 >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium">
-                      {place.name}
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {place.imageUrl ? (
+                      <img
+                        src={place.imageUrl}
+                        alt={place.name}
+                        className="border-border/70 size-9 shrink-0 rounded-md border object-cover"
+                      />
+                    ) : null}
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">
+                        {place.name}
+                      </span>
+                      <span className="text-muted-foreground readout text-xs">
+                        {formatDistance(place.distanceM)}
+                      </span>
                     </span>
-                    <span className="text-muted-foreground readout text-xs">
-                      {formatDistance(place.distanceM)}
-                    </span>
-                  </span>
+                  </div>
                   <Button
                     size="sm"
                     variant="outline"

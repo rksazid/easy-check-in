@@ -4,7 +4,14 @@ A location-based check-in app for gyms and offices. Members tap one button to
 check in at a place they're physically standing near; admins get monthly reports
 of who was where, and for how long.
 
-Built as a PWA so it runs on any phone without an app store.
+Built as an installable PWA and accompanied by a complete REST API for Flutter companion mobile apps.
+
+## Documentation
+
+- **[REST API Documentation](docs/API_DOCUMENTATION.md)**: Full REST API specification for Flutter and mobile apps, including authentication with Bearer tokens and offline batch sync.
+- **[Flutter Integration Guide](docs/FLUTTER_INTEGRATION_GUIDE.md)**: Step-by-step architecture, packages, offline SQLite queue, and Flutter map implementation.
+- **[PWA & Offline Architecture](docs/PWA_AND_OFFLINE_ARCHITECTURE.md)**: Cross-platform installation (Android, iOS, macOS, Windows) and offline caching strategies.
+- **[Audit & Strategic Roadmap](docs/APPLICATION_AUDIT_AND_ROADMAP.md)**: Comprehensive codebase audit, UI/UX opportunities, and roadmap for universal check-in.
 
 ## Requirements
 

@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 
 import { db } from "@/lib/db/client";
 import {
+  checkInImages,
   checkIns,
   locationCaptures,
   member,
@@ -43,9 +44,10 @@ const durationSeconds = sql<
        ELSE extract(epoch FROM ${checkIns.checkedOutAt} - ${checkIns.checkedInAt})::int
   END`;
 
-export async function listMyVisits(limit = 50): Promise<VisitListItem[]> {
-  const session = await requireSession();
-
+export async function listUserVisits(
+  userId: string,
+  limit = 50,
+): Promise<VisitListItem[]> {
   const rows = await db
     .select({
       id: checkIns.id,
@@ -61,7 +63,7 @@ export async function listMyVisits(limit = 50): Promise<VisitListItem[]> {
     .innerJoin(places, eq(checkIns.placeId, places.id))
     .innerJoin(placeTypes, eq(places.placeTypeId, placeTypes.id))
     .innerJoin(organization, eq(checkIns.organizationId, organization.id))
-    .where(eq(checkIns.userId, session.user.id))
+    .where(eq(checkIns.userId, userId))
     .orderBy(desc(checkIns.checkedInAt))
     .limit(limit);
 
@@ -69,6 +71,11 @@ export async function listMyVisits(limit = 50): Promise<VisitListItem[]> {
     ...row,
     seconds: row.seconds === null ? null : Number(row.seconds),
   }));
+}
+
+export async function listMyVisits(limit = 50): Promise<VisitListItem[]> {
+  const session = await requireSession();
+  return listUserVisits(session.user.id, limit);
 }
 
 export type MyStats = {
@@ -144,6 +151,7 @@ export type VisitDetail = {
   organizationName: string;
   placeName: string;
   typeName: string;
+  placeImageUrl: string | null;
   placeAddress: string | null;
   placeLatitude: number;
   placeLongitude: number;
@@ -156,6 +164,7 @@ export type VisitDetail = {
   personImage: string | null;
   /** True when the viewer is looking at somebody else's visit as an admin. */
   viewedAsAdmin: boolean;
+  canManage: boolean;
   captures: {
     id: string;
     kind: string;
@@ -164,6 +173,13 @@ export type VisitDetail = {
     accuracyM: number | null;
     distanceM: number;
     inside: boolean;
+    createdAt: Date;
+  }[];
+  images: {
+    id: string;
+    checkInId: string;
+    imageUrl: string;
+    caption: string | null;
     createdAt: Date;
   }[];
 };
@@ -184,6 +200,7 @@ export async function getVisitDetail(visitId: string): Promise<VisitDetail> {
       organizationName: organization.name,
       placeName: places.name,
       typeName: placeTypes.name,
+      placeImageUrl: places.imageUrl,
       placeAddress: places.address,
       placeLatitude: places.latitude,
       placeLongitude: places.longitude,
@@ -215,20 +232,33 @@ export async function getVisitDetail(visitId: string): Promise<VisitDetail> {
   const admin = isSuperAdmin(session.user) || isOrgAdminRole(row.viewerRole);
   if (!own && !admin) notFound();
 
-  const captures = await db
-    .select({
-      id: locationCaptures.id,
-      kind: locationCaptures.kind,
-      latitude: locationCaptures.latitude,
-      longitude: locationCaptures.longitude,
-      accuracyM: locationCaptures.accuracyM,
-      distanceM: locationCaptures.distanceM,
-      inside: locationCaptures.inside,
-      createdAt: locationCaptures.createdAt,
-    })
-    .from(locationCaptures)
-    .where(eq(locationCaptures.checkInId, visitId))
-    .orderBy(asc(locationCaptures.createdAt));
+  const [captures, images] = await Promise.all([
+    db
+      .select({
+        id: locationCaptures.id,
+        kind: locationCaptures.kind,
+        latitude: locationCaptures.latitude,
+        longitude: locationCaptures.longitude,
+        accuracyM: locationCaptures.accuracyM,
+        distanceM: locationCaptures.distanceM,
+        inside: locationCaptures.inside,
+        createdAt: locationCaptures.createdAt,
+      })
+      .from(locationCaptures)
+      .where(eq(locationCaptures.checkInId, visitId))
+      .orderBy(asc(locationCaptures.createdAt)),
+    db
+      .select({
+        id: checkInImages.id,
+        checkInId: checkInImages.checkInId,
+        imageUrl: checkInImages.imageUrl,
+        caption: checkInImages.caption,
+        createdAt: checkInImages.createdAt,
+      })
+      .from(checkInImages)
+      .where(eq(checkInImages.checkInId, visitId))
+      .orderBy(asc(checkInImages.createdAt)),
+  ]);
 
   return {
     id: row.id,
@@ -236,6 +266,7 @@ export async function getVisitDetail(visitId: string): Promise<VisitDetail> {
     organizationName: row.organizationName,
     placeName: row.placeName,
     typeName: row.typeName,
+    placeImageUrl: row.placeImageUrl,
     placeAddress: row.placeAddress,
     placeLatitude: row.placeLatitude,
     placeLongitude: row.placeLongitude,
@@ -247,7 +278,9 @@ export async function getVisitDetail(visitId: string): Promise<VisitDetail> {
     personName: row.personName,
     personImage: row.personImage,
     viewedAsAdmin: !own && admin,
+    canManage: own || admin,
     captures,
+    images,
   };
 }
 
@@ -326,6 +359,7 @@ export type OrgCheckInRow = {
   checkoutReason: string | null;
   seconds: number | null;
   captures: number;
+  photoCount: number;
 };
 
 /**
@@ -383,6 +417,10 @@ export async function listOrganizationCheckIns(
         SELECT count(*)::int FROM location_captures lc
          WHERE lc.check_in_id = ${checkIns.id}
       )`,
+      photoCount: sql<number>`(
+        SELECT count(*)::int FROM check_in_images cii
+         WHERE cii.check_in_id = ${checkIns.id}
+      )`,
     })
     .from(checkIns)
     .innerJoin(places, eq(checkIns.placeId, places.id))
@@ -399,6 +437,7 @@ export async function listOrganizationCheckIns(
       ...row,
       seconds: row.seconds === null ? null : Number(row.seconds),
       captures: Number(row.captures),
+      photoCount: Number(row.photoCount),
     })),
   };
 }

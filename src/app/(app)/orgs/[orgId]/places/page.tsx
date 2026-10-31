@@ -39,6 +39,7 @@ export default async function PlacesPage({
       id: places.id,
       name: places.name,
       address: places.address,
+      imageUrl: places.imageUrl,
       latitude: places.latitude,
       longitude: places.longitude,
       radiusM: places.radiusM,
@@ -112,30 +113,39 @@ export default async function PlacesPage({
                 key={place.id}
                 className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
               >
-                <div className="min-w-0 space-y-1">
-                  <p className="flex flex-wrap items-center gap-2 font-medium">
-                    {place.name}
-                    <Badge variant="secondary">{place.typeName}</Badge>
-                  </p>
-                  {place.address ? (
-                    <p className="text-muted-foreground text-sm">
-                      {place.address}
-                    </p>
+                <div className="flex items-start gap-3 min-w-0">
+                  {place.imageUrl ? (
+                    <img
+                      src={place.imageUrl}
+                      alt={place.name}
+                      className="border-border/70 size-12 shrink-0 rounded-lg border object-cover"
+                    />
                   ) : null}
-                  <p className="text-muted-foreground readout text-xs">
-                    {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}, within{" "}
-                    {place.radiusM} m
-                  </p>
-                  {isAdmin && place.proposerName ? (
-                    <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                      <Avatar
-                        name={place.proposerName}
-                        src={place.proposerImage}
-                        className="size-4 text-[8px]"
-                      />
-                      added by {place.proposerName}
+                  <div className="min-w-0 space-y-1">
+                    <p className="flex flex-wrap items-center gap-2 font-medium">
+                      {place.name}
+                      <Badge variant="secondary">{place.typeName}</Badge>
                     </p>
-                  ) : null}
+                    {place.address ? (
+                      <p className="text-muted-foreground text-sm">
+                        {place.address}
+                      </p>
+                    ) : null}
+                    <p className="text-muted-foreground readout text-xs">
+                      {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}, within{" "}
+                      {place.radiusM} m
+                    </p>
+                    {isAdmin && place.proposerName ? (
+                      <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                        <Avatar
+                          name={place.proposerName}
+                          src={place.proposerImage}
+                          className="size-4 text-[8px]"
+                        />
+                        added by {place.proposerName}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
                 <PendingPlaceActions
                   organizationId={orgId}
@@ -163,29 +173,38 @@ export default async function PlacesPage({
                 key={place.id}
                 className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
               >
-                <div className="min-w-0 space-y-1">
-                  <p className="flex flex-wrap items-center gap-2 font-medium">
-                    {isAdmin ? (
-                      <Link
-                        href={`/orgs/${orgId}/places/${place.id}`}
-                        className="underline-offset-4 hover:underline"
-                      >
-                        {place.name}
-                      </Link>
-                    ) : (
-                      place.name
-                    )}
-                    <Badge variant="secondary">{place.typeName}</Badge>
-                  </p>
-                  {place.address ? (
-                    <p className="text-muted-foreground text-sm">
-                      {place.address}
-                    </p>
+                <div className="flex items-start gap-3 min-w-0">
+                  {place.imageUrl ? (
+                    <img
+                      src={place.imageUrl}
+                      alt={place.name}
+                      className="border-border/70 size-12 shrink-0 rounded-lg border object-cover"
+                    />
                   ) : null}
-                  <p className="text-muted-foreground readout text-xs">
-                    {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}, within{" "}
-                    {place.radiusM} m
-                  </p>
+                  <div className="min-w-0 space-y-1">
+                    <p className="flex flex-wrap items-center gap-2 font-medium">
+                      {isAdmin ? (
+                        <Link
+                          href={`/orgs/${orgId}/places/${place.id}`}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {place.name}
+                        </Link>
+                      ) : (
+                        place.name
+                      )}
+                      <Badge variant="secondary">{place.typeName}</Badge>
+                    </p>
+                    {place.address ? (
+                      <p className="text-muted-foreground text-sm">
+                        {place.address}
+                      </p>
+                    ) : null}
+                    <p className="text-muted-foreground readout text-xs">
+                      {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}, within{" "}
+                      {place.radiusM} m
+                    </p>
+                  </div>
                 </div>
                 {isAdmin ? (
                   <PlaceRowActions

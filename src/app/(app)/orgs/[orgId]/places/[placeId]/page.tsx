@@ -54,6 +54,7 @@ export default async function EditPlacePage({
           id: place.id,
           name: place.name,
           placeTypeId: place.placeTypeId,
+          imageUrl: place.imageUrl,
           latitude: place.latitude,
           longitude: place.longitude,
           radiusM: place.radiusM,

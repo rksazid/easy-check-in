@@ -1,5 +1,5 @@
 import { asc, eq } from "drizzle-orm";
-import { ChevronRight } from "lucide-react";
+import { Camera, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import { CheckInFilters } from "./check-in-filters";
@@ -161,6 +161,12 @@ export default async function CheckInLogPage({
                     </span>
                     {row.checkedOutAt === null ? (
                       <Badge>Here now</Badge>
+                    ) : null}
+                    {row.photoCount > 0 ? (
+                      <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[10px]">
+                        <Camera className="size-3" />
+                        {row.photoCount}
+                      </Badge>
                     ) : null}
                   </span>
                   <span className="text-muted-foreground block truncate text-xs">

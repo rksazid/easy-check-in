@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Archivo, IBM_Plex_Mono } from "next/font/google";
 
 import { ServiceWorker } from "@/components/service-worker";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import "./globals.css";
@@ -37,7 +38,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0C1F26",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8faf9" },
+    { media: "(prefers-color-scheme: dark)", color: "#0C1F26" },
+  ],
   // The check-in button is thumb-sized by design, so zooming stays available.
   width: "device-width",
   initialScale: 1,
@@ -50,6 +54,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={cn("font-sans", archivo.variable, plexMono.variable)}
     >
       {/*
@@ -60,9 +65,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         are still checked normally.
       */}
       <body className="min-h-dvh antialiased" suppressHydrationWarning>
-        {children}
-        <Toaster position="top-center" />
-        <ServiceWorker />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster position="top-center" />
+          <ServiceWorker />
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -20,6 +20,7 @@ export type Membership = {
   organizationId: string;
   name: string;
   slug: string;
+  logo: string | null;
   role: string;
   isAdmin: boolean;
 };
@@ -32,6 +33,7 @@ export async function listMyOrganizations(
       organizationId: organization.id,
       name: organization.name,
       slug: organization.slug,
+      logo: organization.logo,
       role: member.role,
     })
     .from(member)
@@ -60,6 +62,7 @@ export async function requireOrgAdmin(organizationId: string) {
       role: member.role,
       name: organization.name,
       slug: organization.slug,
+      logo: organization.logo,
       timezone: organizationSettings.timezone,
     })
     .from(organization)
@@ -88,6 +91,7 @@ export async function requireOrgAdmin(organizationId: string) {
       id: organizationId,
       name: row.name,
       slug: row.slug,
+      logo: row.logo,
       timezone: row.timezone ?? "UTC",
     },
   };

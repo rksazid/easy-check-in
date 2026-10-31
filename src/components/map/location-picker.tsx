@@ -231,7 +231,7 @@ export function LocationPicker({
         ) : null}
       </div>
 
-      <div className="border-border/70 h-72 overflow-hidden rounded-lg border">
+      <div className="border-border/70 isolate relative z-0 h-72 overflow-hidden rounded-lg border">
         <MapContainer
           center={center}
           zoom={16}

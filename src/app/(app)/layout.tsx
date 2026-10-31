@@ -4,6 +4,7 @@ import { Avatar } from "@/components/avatar";
 import { AppNav } from "@/components/app-nav";
 import { BrandLockup } from "@/components/brand";
 import { OfflineBanner } from "@/components/offline-banner";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { isSuperAdmin, requireSession } from "@/lib/session";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -27,6 +28,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
           <div className="flex items-center gap-2">
             <AppNav superAdmin={isSuperAdmin(session.user)} />
+            <ThemeToggle />
             <Link
               href="/profile"
               aria-label="Your profile"

@@ -1,17 +1,11 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { setOrgTimezone } from "@/actions/organizations";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { TimezoneSelect } from "@/components/timezone-select";
 
 export function TimezoneForm({
   organizationId,
@@ -20,27 +14,17 @@ export function TimezoneForm({
   organizationId: string;
   timezone: string;
 }) {
-  const zones = useMemo(() => Intl.supportedValuesOf("timeZone"), []);
   const [value, setValue] = useState(timezone);
   const [pending, startTransition] = useTransition();
 
-  const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
   return (
-    <div className="flex max-w-md flex-wrap items-center gap-2">
-      <Select value={value} onValueChange={setValue} disabled={pending}>
-        <SelectTrigger className="flex-1" aria-label="Organization time zone">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent className="max-h-72">
-          {zones.map((zone) => (
-            <SelectItem key={zone} value={zone}>
-              {zone.replace(/_/g, " ")}
-              {zone === browserZone ? " (yours)" : ""}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="flex max-w-md flex-col gap-3 sm:flex-row sm:items-center">
+      <TimezoneSelect
+        value={value}
+        onChange={setValue}
+        disabled={pending}
+        className="flex-1"
+      />
 
       <Button
         disabled={pending || value === timezone}

@@ -5,6 +5,7 @@ import { AdminCheckOutButton } from "./admin-check-out-button";
 import { InviteMember } from "./invite-member";
 import { MemberTagPicker } from "./member-tag-picker";
 import { JoinRequestActions, MemberActions } from "./member-actions";
+import { OrgIconForm } from "./org-icon-form";
 import { SlackSettings } from "./slack-settings";
 import { TagManager } from "./tag-manager";
 import { TimezoneForm } from "./timezone-form";
@@ -12,6 +13,7 @@ import { sweepForgottenCheckIns } from "@/actions/check-in";
 import { Avatar } from "@/components/avatar";
 import { Elapsed } from "@/components/elapsed";
 import { LocalTime } from "@/components/local-time";
+import { OrgIcon } from "@/components/org-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db/client";
@@ -133,13 +135,16 @@ export default async function OrgAdminPage({
   return (
     <div className="space-y-10">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {organization.name}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {members.length} {members.length === 1 ? "member" : "members"}
-          </p>
+        <div className="flex items-center gap-3">
+          <OrgIcon logo={organization.logo} name={organization.name} size="lg" />
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {organization.name}
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {members.length} {members.length === 1 ? "member" : "members"}
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
@@ -296,6 +301,17 @@ export default async function OrgAdminPage({
               : null
           }
           notifyEvents={slack?.slackNotifyEvents ?? true}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold">Icon</h2>
+        <p className="text-muted-foreground max-w-prose text-sm">
+          Preset icon or custom logo representing this organization.
+        </p>
+        <OrgIconForm
+          organizationId={orgId}
+          currentLogo={organization.logo}
         />
       </section>
 

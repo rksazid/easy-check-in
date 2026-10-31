@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Avatar } from "@/components/avatar";
+import { CheckInPhotoGallery } from "@/components/check-in-photo-gallery";
 import { Elapsed } from "@/components/elapsed";
 import { LocalTime } from "@/components/local-time";
 import { VisitMap } from "@/components/map/visit-map-loader";
@@ -34,22 +35,31 @@ export default async function VisitPage({
 
   return (
     <div className="space-y-7">
-      <div className="space-y-1">
-        <Link
-          href={visit.viewedAsAdmin ? `/admin/${visit.organizationId}` : "/activity"}
-          className="text-muted-foreground text-sm underline-offset-4 hover:underline"
-        >
-          {visit.viewedAsAdmin ? "Back to the organization" : "Back to activity"}
-        </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {visit.placeName}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {visit.organizationName}, {visit.typeName}
-        </p>
-        {visit.placeAddress ? (
-          <p className="text-muted-foreground text-sm">{visit.placeAddress}</p>
+      <div className="flex items-start gap-4">
+        {visit.placeImageUrl ? (
+          <img
+            src={visit.placeImageUrl}
+            alt={visit.placeName}
+            className="border-border/70 size-16 shrink-0 rounded-xl border object-cover shadow-sm"
+          />
         ) : null}
+        <div className="min-w-0 space-y-1">
+          <Link
+            href={visit.viewedAsAdmin ? `/admin/${visit.organizationId}` : "/activity"}
+            className="text-muted-foreground text-sm underline-offset-4 hover:underline"
+          >
+            {visit.viewedAsAdmin ? "Back to the organization" : "Back to activity"}
+          </Link>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {visit.placeName}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {visit.organizationName}, {visit.typeName}
+          </p>
+          {visit.placeAddress ? (
+            <p className="text-muted-foreground text-sm">{visit.placeAddress}</p>
+          ) : null}
+        </div>
       </div>
 
       {visit.viewedAsAdmin ? (
@@ -100,6 +110,15 @@ export default async function VisitPage({
           }))}
         />
       ) : null}
+
+      <section className="border-border/70 rounded-lg border p-4">
+        <CheckInPhotoGallery
+          checkInId={visit.id}
+          initialImages={visit.images}
+          canUpload={visit.canManage}
+          canDelete={visit.canManage}
+        />
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Location readings</h2>

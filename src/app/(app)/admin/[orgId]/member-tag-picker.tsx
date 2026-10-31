@@ -4,11 +4,11 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { setMemberTags } from "@/actions/tags";
-import { Badge } from "@/components/ui/badge";
+import { TagBadge, getTagColorStyles } from "@/components/tag-badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type Tag = { id: string; name: string };
+type Tag = { id: string; name: string; color?: string | null };
 
 export function MemberTagPicker({
   organizationId,
@@ -55,9 +55,7 @@ export function MemberTagPicker({
       <div className="flex flex-wrap items-center gap-1.5">
         {assigned.length > 0 ? (
           assigned.map((tag) => (
-            <Badge key={tag.id} variant="secondary">
-              {tag.name}
-            </Badge>
+            <TagBadge key={tag.id} name={tag.name} color={tag.color} />
           ))
         ) : (
           <span className="text-muted-foreground text-xs">No tags</span>
@@ -81,6 +79,7 @@ export function MemberTagPicker({
         >
           {allTags.map((tag) => {
             const on = selected.has(tag.id);
+            const c = getTagColorStyles(tag.color);
             return (
               <button
                 key={tag.id}
@@ -89,13 +88,14 @@ export function MemberTagPicker({
                 disabled={pending}
                 onClick={() => toggle(tag.id)}
                 className={cn(
-                  "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
                   on
-                    ? "border-signal bg-signal/15 text-foreground"
+                    ? cn(c.border, c.bg, c.text, "font-medium ring-1", c.border)
                     : "border-border text-muted-foreground hover:text-foreground",
                 )}
               >
-                {tag.name}
+                <span className={cn("size-1.5 rounded-full shrink-0", c.dot)} aria-hidden="true" />
+                <span>{tag.name}</span>
               </button>
             );
           })}

@@ -161,3 +161,33 @@
     @apply font-mono tabular-nums tracking-tight;
     }
 }
+
+/* Leaflet map adaptations in dark mode */
+.dark .leaflet-tile {
+    filter: brightness(0.65) invert(1) contrast(1.4) hue-rotate(190deg) saturate(0.4);
+}
+
+.dark .leaflet-container {
+    background-color: oklch(0.194 0.0223 213);
+}
+
+.dark .leaflet-bar a {
+    background-color: oklch(0.243 0.0243 213);
+    color: oklch(0.951 0.0053 174);
+    border-color: oklch(1 0 0 / 12%);
+}
+
+.dark .leaflet-bar a:hover {
+    background-color: oklch(0.297 0.0232 213);
+    color: oklch(0.951 0.0053 174);
+}
+
+.dark .leaflet-control-attribution {
+    background-color: oklch(0.243 0.0243 213 / 80%) !important;
+    color: oklch(0.702 0.0161 213) !important;
+}
+
+.dark .leaflet-control-attribution a {
+    color: oklch(0.782 0.1352 176) !important;
+}
+

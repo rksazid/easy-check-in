@@ -2,7 +2,10 @@ import Link from "next/link";
 
 import { AvatarSection } from "./avatar-section";
 import { ProfileForm } from "./profile-form";
+import { OrgIcon } from "@/components/org-icon";
 import { SignOutButton } from "@/components/sign-out-button";
+import { TagBadge } from "@/components/tag-badge";
+import { ThemeSelector } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { listMyOrganizations } from "@/lib/org";
 import { requireSession } from "@/lib/session";
@@ -56,6 +59,7 @@ export default async function ProfilePage() {
                       className="space-y-1"
                     >
                       <span className="flex flex-wrap items-center gap-2">
+                        <OrgIcon logo={membership.logo} name={membership.name} size="sm" />
                         <span className="font-medium underline-offset-4 hover:underline">
                           {membership.name}
                         </span>
@@ -66,9 +70,7 @@ export default async function ProfilePage() {
                       {tags.length > 0 ? (
                         <span className="flex flex-wrap gap-1">
                           {tags.map((tag) => (
-                            <Badge key={tag.id} variant="outline">
-                              {tag.name}
-                            </Badge>
+                            <TagBadge key={tag.id} name={tag.name} color={tag.color} />
                           ))}
                         </span>
                       ) : (
@@ -92,6 +94,16 @@ export default async function ProfilePage() {
         username={user.username ?? ""}
         email={user.email}
       />
+
+      <hr className="border-border/70" />
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold">Appearance</h2>
+        <p className="text-muted-foreground text-sm">
+          Customize how Easy Check-In looks on your device.
+        </p>
+        <ThemeSelector />
+      </section>
 
       <hr className="border-border/70" />
 

@@ -3,13 +3,13 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { member, memberTags, tags } from "@/lib/db/schema";
 
-export type Tag = { id: string; name: string };
+export type Tag = { id: string; name: string; color?: string | null };
 
 export async function listOrganizationTags(
   organizationId: string,
 ): Promise<Tag[]> {
   return db
-    .select({ id: tags.id, name: tags.name })
+    .select({ id: tags.id, name: tags.name, color: tags.color })
     .from(tags)
     .where(eq(tags.organizationId, organizationId))
     .orderBy(asc(sql`lower(${tags.name})`));
@@ -21,12 +21,13 @@ export async function countTagUse(organizationId: string) {
     .select({
       tagId: tags.id,
       name: tags.name,
+      color: tags.color,
       people: sql<number>`count(${memberTags.memberId})::int`,
     })
     .from(tags)
     .leftJoin(memberTags, eq(memberTags.tagId, tags.id))
     .where(eq(tags.organizationId, organizationId))
-    .groupBy(tags.id, tags.name)
+    .groupBy(tags.id, tags.name, tags.color)
     .orderBy(asc(sql`lower(${tags.name})`));
 
   return rows.map((row) => ({ ...row, people: Number(row.people) }));
@@ -41,6 +42,7 @@ export async function tagsByMember(
       memberId: memberTags.memberId,
       id: tags.id,
       name: tags.name,
+      color: tags.color,
     })
     .from(memberTags)
     .innerJoin(tags, eq(memberTags.tagId, tags.id))
@@ -51,7 +53,7 @@ export async function tagsByMember(
   const byMember = new Map<string, Tag[]>();
   for (const row of rows) {
     const list = byMember.get(row.memberId) ?? [];
-    list.push({ id: row.id, name: row.name });
+    list.push({ id: row.id, name: row.name, color: row.color });
     byMember.set(row.memberId, list);
   }
   return byMember;
@@ -89,6 +91,7 @@ export async function myTagsByOrganization(
       organizationId: member.organizationId,
       id: tags.id,
       name: tags.name,
+      color: tags.color,
     })
     .from(memberTags)
     .innerJoin(member, eq(memberTags.memberId, member.id))
@@ -99,7 +102,7 @@ export async function myTagsByOrganization(
   const byOrganization = new Map<string, Tag[]>();
   for (const row of rows) {
     const list = byOrganization.get(row.organizationId) ?? [];
-    list.push({ id: row.id, name: row.name });
+    list.push({ id: row.id, name: row.name, color: row.color });
     byOrganization.set(row.organizationId, list);
   }
   return byOrganization;

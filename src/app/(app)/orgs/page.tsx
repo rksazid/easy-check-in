@@ -5,6 +5,8 @@ import { BrowseOrganizations } from "./browse-organizations";
 import { InvitationActions, RequestActions } from "./request-actions";
 import { listJoinableOrganizations } from "@/actions/organizations";
 import { LocalTime } from "@/components/local-time";
+import { OrgIcon } from "@/components/org-icon";
+import { TagBadge } from "@/components/tag-badge";
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/db/client";
 import { joinRequests, organization } from "@/lib/db/schema";
@@ -95,7 +97,8 @@ export default async function OrganizationsPage() {
                   href={`/orgs/${membership.organizationId}`}
                   className="min-w-0 flex-1 space-y-1"
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2.5">
+                    <OrgIcon logo={membership.logo} name={membership.name} size="sm" />
                     <span className="truncate font-medium underline-offset-4 hover:underline">
                       {membership.name}
                     </span>
@@ -108,9 +111,7 @@ export default async function OrganizationsPage() {
                     <span className="flex flex-wrap gap-1">
                       {(myTags.get(membership.organizationId) ?? []).map(
                         (tag) => (
-                          <Badge key={tag.id} variant="outline">
-                            {tag.name}
-                          </Badge>
+                          <TagBadge key={tag.id} name={tag.name} color={tag.color} />
                         ),
                       )}
                     </span>

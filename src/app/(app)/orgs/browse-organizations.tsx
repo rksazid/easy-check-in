@@ -4,10 +4,16 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { requestToJoin } from "@/actions/organizations";
+import { OrgIcon } from "@/components/org-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type JoinableOrganization = { id: string; name: string; slug: string };
+type JoinableOrganization = {
+  id: string;
+  name: string;
+  slug: string;
+  logo?: string | null;
+};
 
 export function BrowseOrganizations({
   organizations,
@@ -49,7 +55,10 @@ export function BrowseOrganizations({
         {visible.map((org) => (
           <li key={org.id} className="px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="font-medium">{org.name}</span>
+              <span className="flex items-center gap-2.5 font-medium">
+                <OrgIcon logo={org.logo} name={org.name} size="sm" />
+                <span>{org.name}</span>
+              </span>
               <Button
                 size="sm"
                 variant="outline"
