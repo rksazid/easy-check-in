@@ -36,3 +36,4 @@ describe("Place Icon Resolution", () => {
     expect(getPlaceIconComponent("unknown-slug", "Random Unknown")).toBe(MapPin);
   });
 });
+
