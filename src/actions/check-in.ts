@@ -336,6 +336,8 @@ export type ManualCheckInPlace = {
   organizationId: string;
   organizationName: string;
   address: string | null;
+  latitude: number;
+  longitude: number;
 };
 
 /**
@@ -360,6 +362,8 @@ export async function getManualCheckInPlacesForUser(
       organizationId: places.organizationId,
       organizationName: organization.name,
       address: places.address,
+      latitude: places.latitude,
+      longitude: places.longitude,
     })
     .from(places)
     .innerJoin(placeTypes, eq(places.placeTypeId, placeTypes.id))
@@ -390,12 +394,14 @@ export async function getManualCheckInPlacesForUser(
 /**
  * Creates a manual check-in for a member without GPS proximity checks,
  * provided the organization settings permit it.
+ * Accepts an explicit event timestamp for offline playback.
  */
-export async function manualCheckIn(
+export async function manualCheckInUser(
+  userId: string,
   placeId: string,
-  note?: string,
+  eventTime: Date = new Date(),
+  _note?: string,
 ): Promise<CheckInResult> {
-  const session = await requireSession();
   await sweepForgottenCheckIns();
 
   const [place] = await db
@@ -413,7 +419,7 @@ export async function manualCheckIn(
       member,
       and(
         eq(member.organizationId, places.organizationId),
-        eq(member.userId, session.user.id),
+        eq(member.userId, userId),
       ),
     )
     .leftJoin(
@@ -435,14 +441,13 @@ export async function manualCheckIn(
   }
 
   try {
-    const now = new Date();
     const [created] = await db
       .insert(checkIns)
       .values({
-        userId: session.user.id,
+        userId,
         placeId: place.id,
         organizationId: place.organizationId,
-        checkedInAt: now,
+        checkedInAt: eventTime,
         isManual: true,
         status: "approved",
       })
@@ -456,7 +461,7 @@ export async function manualCheckIn(
       accuracyM: null,
       distanceM: 0,
       inside: true,
-      createdAt: now,
+      createdAt: eventTime,
     });
   } catch {
     return {
@@ -469,6 +474,18 @@ export async function manualCheckIn(
   revalidatePath("/activity");
   revalidatePath(`/admin/${place.organizationId}/check-ins`);
   return { ok: true };
+}
+
+/**
+ * Creates a manual check-in for the current session user without GPS proximity checks,
+ * provided the organization settings permit it.
+ */
+export async function manualCheckIn(
+  placeId: string,
+  note?: string,
+): Promise<CheckInResult> {
+  const session = await requireSession();
+  return manualCheckInUser(session.user.id, placeId, new Date(), note);
 }
 
 /**

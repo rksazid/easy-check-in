@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   checkInUser,
   checkOutUser,
+  manualCheckInUser,
   storeLocationForUser,
 } from "@/actions/check-in";
 import { requireApiAuth } from "@/lib/api-auth";
@@ -15,6 +16,7 @@ const syncItemSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   accuracyM: z.number().nullable().optional(),
+  isManual: z.boolean().optional(),
   timestamp: z.string().datetime({ message: "timestamp must be ISO 8601" }),
 });
 
@@ -82,27 +84,42 @@ export async function POST(req: NextRequest) {
     }
 
     if (item.type === "check_in") {
-      if (!item.placeId || item.latitude === undefined || item.longitude === undefined) {
-        results.push({
-          id: item.id,
-          type: item.type,
-          ok: false,
-          error: "check_in requires placeId, latitude, and longitude",
-        });
-        continue;
-      }
+      if (item.isManual) {
+        if (!item.placeId) {
+          results.push({
+            id: item.id,
+            type: item.type,
+            ok: false,
+            error: "manual check_in requires placeId",
+          });
+          continue;
+        }
 
-      const res = await checkInUser(
-        userId,
-        item.placeId,
-        {
-          latitude: item.latitude,
-          longitude: item.longitude,
-          accuracyM: item.accuracyM ?? null,
-        },
-        eventTime,
-      );
-      results.push({ id: item.id, type: item.type, ok: res.ok, error: res.ok ? undefined : res.error });
+        const res = await manualCheckInUser(userId, item.placeId, eventTime);
+        results.push({ id: item.id, type: item.type, ok: res.ok, error: res.ok ? undefined : res.error });
+      } else {
+        if (!item.placeId || item.latitude === undefined || item.longitude === undefined) {
+          results.push({
+            id: item.id,
+            type: item.type,
+            ok: false,
+            error: "check_in requires placeId, latitude, and longitude",
+          });
+          continue;
+        }
+
+        const res = await checkInUser(
+          userId,
+          item.placeId,
+          {
+            latitude: item.latitude,
+            longitude: item.longitude,
+            accuracyM: item.accuracyM ?? null,
+          },
+          eventTime,
+        );
+        results.push({ id: item.id, type: item.type, ok: res.ok, error: res.ok ? undefined : res.error });
+      }
     } else if (item.type === "store_location") {
       if (item.latitude === undefined || item.longitude === undefined) {
         results.push({

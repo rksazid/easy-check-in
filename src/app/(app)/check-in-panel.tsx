@@ -1,8 +1,8 @@
 "use client";
 
 import { useOffline } from "next/offline";
-import { useCallback, useState, useTransition } from "react";
-import { Hand } from "lucide-react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Hand, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -23,7 +23,16 @@ import { PlaceIcon } from "@/components/place-icon";
 import { RingButton } from "@/components/ring-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDistance } from "@/lib/geo/haversine";
+import { distanceMeters, formatDistance } from "@/lib/geo/haversine";
+import {
+  cacheOfflinePlaces,
+  enqueueOfflineEvent,
+  getCachedOfflinePlaces,
+  getLocalActiveCheckIn,
+  setLocalActiveCheckIn,
+  subscribeSyncStatus,
+  syncOfflineQueue,
+} from "@/lib/offline-sync";
 
 const GEOLOCATION_OPTIONS: PositionOptions = {
   enableHighAccuracy: true,
@@ -57,8 +66,54 @@ function currentPosition(): Promise<Position> {
   });
 }
 
+function SyncStatusBadge() {
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    return subscribeSyncStatus((count, syncing) => {
+      setPendingCount(count);
+      setIsSyncing(syncing);
+    });
+  }, []);
+
+  if (pendingCount === 0) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-2 rounded-full bg-muted/80 px-3 py-1 text-xs text-muted-foreground border border-border/60">
+      <span className="inline-block size-2 rounded-full bg-amber-500 animate-pulse" />
+      <span>
+        {pendingCount} unsynced offline {pendingCount === 1 ? "action" : "actions"}
+      </span>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-5 px-1.5 text-[11px] font-semibold text-primary hover:text-primary/80"
+        disabled={isSyncing}
+        onClick={async () => {
+          const res = await syncOfflineQueue();
+          if (res.ok && res.syncedCount > 0) {
+            toast.success(`Synced ${res.syncedCount} event(s)`);
+          } else if (!res.ok) {
+            toast.error("Server still unreachable. Retrying automatically in background.");
+          }
+        }}
+      >
+        {isSyncing ? (
+          <span className="flex items-center gap-1">
+            <RefreshCw className="size-3 animate-spin" />
+            Syncing...
+          </span>
+        ) : (
+          "Sync now"
+        )}
+      </Button>
+    </div>
+  );
+}
+
 export function CheckInPanel({
-  active,
+  active: serverActive,
   consented,
   manualPlaces = [],
 }: {
@@ -67,14 +122,82 @@ export function CheckInPanel({
   consented: boolean;
   manualPlaces?: ManualCheckInPlace[];
 }) {
-  if (active) return <CheckedIn active={active} />;
-  if (!consented) return <ConsentGate manualPlaces={manualPlaces} />;
-  return <NotCheckedIn manualPlaces={manualPlaces} />;
+  const [localActive, setLocalActive] = useState<ActiveCheckIn | null>(null);
+
+  // Cache manual places locally whenever received
+  useEffect(() => {
+    if (manualPlaces && manualPlaces.length > 0) {
+      cacheOfflinePlaces(manualPlaces);
+    }
+  }, [manualPlaces]);
+
+  // Reconcile server active with local optimistic active check-in
+  useEffect(() => {
+    if (serverActive) {
+      setLocalActive(null);
+      setLocalActiveCheckIn(null);
+    } else {
+      const stored = getLocalActiveCheckIn();
+      if (stored) {
+        setLocalActive({
+          ...stored,
+          checkedInAt: new Date(stored.checkedInAt),
+          images: [],
+        });
+      } else {
+        setLocalActive(null);
+      }
+    }
+  }, [serverActive]);
+
+  useEffect(() => {
+    return subscribeSyncStatus(() => {
+      if (!serverActive) {
+        const stored = getLocalActiveCheckIn();
+        if (stored) {
+          setLocalActive({
+            ...stored,
+            checkedInAt: new Date(stored.checkedInAt),
+            images: [],
+          });
+        } else {
+          setLocalActive(null);
+        }
+      }
+    });
+  }, [serverActive]);
+
+  const currentActive = serverActive ?? localActive;
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <SyncStatusBadge />
+      {currentActive ? (
+        <CheckedIn
+          active={currentActive}
+          onOptimisticCheckOut={() => setLocalActive(null)}
+        />
+      ) : !consented ? (
+        <ConsentGate manualPlaces={manualPlaces} />
+      ) : (
+        <NotCheckedIn
+          manualPlaces={manualPlaces}
+          onOptimisticCheckIn={(newActive) => setLocalActive(newActive)}
+        />
+      )}
+    </div>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
 
-function CheckedIn({ active }: { active: ActiveCheckIn }) {
+function CheckedIn({
+  active,
+  onOptimisticCheckOut,
+}: {
+  active: ActiveCheckIn;
+  onOptimisticCheckOut?: () => void;
+}) {
   const [pending, startTransition] = useTransition();
   const offline = useOffline();
 
@@ -89,11 +212,49 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
         position = null;
       }
 
-      const result = await checkOut(position);
-      if (result.ok) {
-        toast.success(`Checked out of ${active.placeName}`);
-      } else {
-        toast.error(result.error);
+      const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+      if (isOffline) {
+        enqueueOfflineEvent({
+          id: crypto.randomUUID(),
+          type: "check_out",
+          latitude: position?.latitude,
+          longitude: position?.longitude,
+          accuracyM: position?.accuracyM,
+          timestamp: new Date().toISOString(),
+        });
+        setLocalActiveCheckIn(null);
+        onOptimisticCheckOut?.();
+        toast.info(
+          `Checked out of ${active.placeName} (saved offline; will sync automatically when online)`
+        );
+        return;
+      }
+
+      try {
+        const result = await checkOut(position);
+        if (result.ok) {
+          setLocalActiveCheckIn(null);
+          onOptimisticCheckOut?.();
+          toast.success(`Checked out of ${active.placeName}`);
+        } else {
+          toast.error(result.error);
+        }
+      } catch {
+        // Network timeout / Vercel sleeping / offline
+        enqueueOfflineEvent({
+          id: crypto.randomUUID(),
+          type: "check_out",
+          latitude: position?.latitude,
+          longitude: position?.longitude,
+          accuracyM: position?.accuracyM,
+          timestamp: new Date().toISOString(),
+        });
+        setLocalActiveCheckIn(null);
+        onOptimisticCheckOut?.();
+        toast.info(
+          `Checked out of ${active.placeName} (saved offline; will sync automatically)`
+        );
       }
     });
   }
@@ -101,11 +262,39 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
   function proveStillHere() {
     startTransition(async () => {
       try {
-        const result = await storeLocation(await currentPosition());
-        if (result.ok) {
-          toast.success("Location stored");
-        } else {
-          toast.error(result.error);
+        const position = await currentPosition();
+        const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+        if (isOffline) {
+          enqueueOfflineEvent({
+            id: crypto.randomUUID(),
+            type: "store_location",
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracyM: position.accuracyM,
+            timestamp: new Date().toISOString(),
+          });
+          toast.info("Location recorded offline; will sync when back online");
+          return;
+        }
+
+        try {
+          const result = await storeLocation(position);
+          if (result.ok) {
+            toast.success("Location stored");
+          } else {
+            toast.error(result.error);
+          }
+        } catch {
+          enqueueOfflineEvent({
+            id: crypto.randomUUID(),
+            type: "store_location",
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracyM: position.accuracyM,
+            timestamp: new Date().toISOString(),
+          });
+          toast.info("Location recorded offline; will sync when server wakes up");
         }
       } catch (error) {
         toast.error((error as Error).message);
@@ -114,7 +303,7 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-8 py-2 text-center">
+    <div className="flex flex-col items-center gap-8 py-2 text-center w-full">
       <div className="flex flex-col items-center gap-2">
         <PlaceIcon
           imageUrl={active.placeImageUrl}
@@ -156,7 +345,7 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
 
       <RingButton
         label="Check out"
-        sublabel={pending && offline ? "Waiting for a connection" : undefined}
+        sublabel={pending && offline ? "Saving offline..." : undefined}
         tone="stop"
         pending={pending}
         onClick={finish}
@@ -195,20 +384,101 @@ function CheckedIn({ active }: { active: ActiveCheckIn }) {
 
 function NotCheckedIn({
   manualPlaces = [],
+  onOptimisticCheckIn,
 }: {
   manualPlaces?: ManualCheckInPlace[];
+  onOptimisticCheckIn?: (active: ActiveCheckIn) => void;
 }) {
   const [places, setPlaces] = useState<NearbyPlace[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const offline = useOffline();
 
+  // If manualPlaces prop is empty (offline launch), load from cache
+  const effectiveManualPlaces =
+    manualPlaces.length > 0 ? manualPlaces : getCachedOfflinePlaces();
+
   const look = useCallback(() => {
     setError(null);
     startTransition(async () => {
       try {
         const position = await currentPosition();
-        setPlaces(await findNearbyPlaces(position));
+        const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+        if (isOffline) {
+          const cached = getCachedOfflinePlaces();
+          if (cached.length === 0) {
+            setError(
+              "Operating offline and no cached places found. Use manual check-in or connect to load places."
+            );
+            setPlaces(null);
+            return;
+          }
+
+          const localNearby: NearbyPlace[] = cached
+            .map((p) => {
+              const d = distanceMeters(position, {
+                latitude: p.latitude,
+                longitude: p.longitude,
+              });
+              const radius = 120;
+              const canCheckIn = d <= radius;
+              return {
+                id: p.id,
+                name: p.name,
+                organizationName: p.organizationName,
+                typeName: p.typeName,
+                typeIcon: p.typeIcon,
+                imageUrl: p.imageUrl,
+                distanceM: d,
+                radiusM: radius,
+                inside: canCheckIn,
+                canCheckIn,
+                reason: canCheckIn ? ("ok" as const) : ("too_far" as const),
+              };
+            })
+            .sort((a, b) => a.distanceM - b.distanceM);
+
+          setPlaces(localNearby);
+          return;
+        }
+
+        try {
+          const results = await findNearbyPlaces(position);
+          setPlaces(results);
+        } catch {
+          // Server asleep or network timeout: fall back to client GPS calculation with cached places
+          const cached = getCachedOfflinePlaces();
+          if (cached.length > 0) {
+            const localNearby: NearbyPlace[] = cached
+              .map((p) => {
+                const d = distanceMeters(position, {
+                  latitude: p.latitude,
+                  longitude: p.longitude,
+                });
+                const radius = 120;
+                const canCheckIn = d <= radius;
+                return {
+                  id: p.id,
+                  name: p.name,
+                  organizationName: p.organizationName,
+                  typeName: p.typeName,
+                  typeIcon: p.typeIcon,
+                  imageUrl: p.imageUrl,
+                  distanceM: d,
+                  radiusM: radius,
+                  inside: canCheckIn,
+                  canCheckIn,
+                  reason: canCheckIn ? ("ok" as const) : ("too_far" as const),
+                };
+              })
+              .sort((a, b) => a.distanceM - b.distanceM);
+            setPlaces(localNearby);
+          } else {
+            setError("Server waking up. Please select a place manually or try again.");
+            setPlaces(null);
+          }
+        }
       } catch (caught) {
         setError((caught as Error).message);
         setPlaces(null);
@@ -220,12 +490,110 @@ function NotCheckedIn({
     startTransition(async () => {
       try {
         const position = await currentPosition();
-        const result = await checkIn(place.id, position);
-        if (result.ok) {
-          toast.success(`Checked in at ${place.name}`);
-        } else {
-          toast.error(result.error);
-          setPlaces(await findNearbyPlaces(position));
+        const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+        if (isOffline) {
+          const eventId = crypto.randomUUID();
+          const now = new Date();
+          enqueueOfflineEvent({
+            id: eventId,
+            type: "check_in",
+            placeId: place.id,
+            placeName: place.name,
+            organizationName: place.organizationName,
+            placeTypeName: place.typeName,
+            placeTypeIcon: place.typeIcon,
+            placeImageUrl: place.imageUrl,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracyM: position.accuracyM,
+            isManual: false,
+            timestamp: now.toISOString(),
+          });
+
+          const newActive: ActiveCheckIn = {
+            id: `offline-${eventId}`,
+            checkedInAt: now,
+            placeId: place.id,
+            placeName: place.name,
+            placeTypeName: place.typeName,
+            placeTypeIcon: place.typeIcon,
+            placeImageUrl: place.imageUrl ?? null,
+            organizationName: place.organizationName,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            radiusM: place.radiusM,
+            captureCount: 1,
+            isManual: false,
+            status: "approved",
+            images: [],
+          };
+
+          setLocalActiveCheckIn({
+            ...newActive,
+            checkedInAt: now.toISOString(),
+          });
+          onOptimisticCheckIn?.(newActive);
+          toast.info(
+            `Checked in at ${place.name} (saved offline; will sync automatically when back online)`
+          );
+          return;
+        }
+
+        try {
+          const result = await checkIn(place.id, position);
+          if (result.ok) {
+            toast.success(`Checked in at ${place.name}`);
+          } else {
+            toast.error(result.error);
+            setPlaces(await findNearbyPlaces(position));
+          }
+        } catch {
+          // Network interruption or server sleeping
+          const eventId = crypto.randomUUID();
+          const now = new Date();
+          enqueueOfflineEvent({
+            id: eventId,
+            type: "check_in",
+            placeId: place.id,
+            placeName: place.name,
+            organizationName: place.organizationName,
+            placeTypeName: place.typeName,
+            placeTypeIcon: place.typeIcon,
+            placeImageUrl: place.imageUrl,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracyM: position.accuracyM,
+            isManual: false,
+            timestamp: now.toISOString(),
+          });
+
+          const newActive: ActiveCheckIn = {
+            id: `offline-${eventId}`,
+            checkedInAt: now,
+            placeId: place.id,
+            placeName: place.name,
+            placeTypeName: place.typeName,
+            placeTypeIcon: place.typeIcon,
+            placeImageUrl: place.imageUrl ?? null,
+            organizationName: place.organizationName,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            radiusM: place.radiusM,
+            captureCount: 1,
+            isManual: false,
+            status: "approved",
+            images: [],
+          };
+
+          setLocalActiveCheckIn({
+            ...newActive,
+            checkedInAt: now.toISOString(),
+          });
+          onOptimisticCheckIn?.(newActive);
+          toast.info(
+            `Server waking up. Saved check-in offline; will sync automatically.`
+          );
         }
       } catch (caught) {
         toast.error((caught as Error).message);
@@ -237,7 +605,7 @@ function NotCheckedIn({
   const others = places?.slice(1) ?? [];
 
   return (
-    <div className="flex flex-col items-center gap-8 py-2 text-center">
+    <div className="flex flex-col items-center gap-8 py-2 text-center w-full">
       {places === null ? (
         <>
           <RingButton
@@ -245,7 +613,7 @@ function NotCheckedIn({
             sublabel={
               pending
                 ? offline
-                  ? "Waiting for a connection"
+                  ? "Evaluating GPS..."
                   : undefined
                 : "Find places near me"
             }
@@ -255,7 +623,7 @@ function NotCheckedIn({
           {error ? (
             <div className="space-y-3 max-w-xs">
               <p className="text-destructive text-sm">{error}</p>
-              {manualPlaces.length > 0 ? (
+              {effectiveManualPlaces.length > 0 ? (
                 <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-left space-y-2">
                   <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
                     Location unavailable?
@@ -264,7 +632,7 @@ function NotCheckedIn({
                     Your organization allows manual check-in without GPS.
                   </p>
                   <ManualCheckInModal
-                    places={manualPlaces}
+                    places={effectiveManualPlaces}
                     trigger={
                       <Button
                         size="sm"
@@ -279,10 +647,10 @@ function NotCheckedIn({
                 </div>
               ) : null}
             </div>
-          ) : manualPlaces.length > 0 ? (
+          ) : effectiveManualPlaces.length > 0 ? (
             <div className="flex flex-col items-center gap-1.5 pt-1">
               <ManualCheckInModal
-                places={manualPlaces}
+                places={effectiveManualPlaces}
                 trigger={
                   <Button
                     variant="outline"
@@ -328,7 +696,7 @@ function NotCheckedIn({
             label="Check in"
             sublabel={
               pending && offline
-                ? "Waiting for a connection"
+                ? "Saving offline..."
                 : nearest.canCheckIn
                   ? undefined
                   : "Too far away"
@@ -345,10 +713,10 @@ function NotCheckedIn({
                   ? "Your location is too vague to be sure you are here. Step outside and try again."
                   : `Get within ${nearest.radiusM} m of ${nearest.name} to check in.`}
               </p>
-              {manualPlaces.length > 0 ? (
+              {effectiveManualPlaces.length > 0 ? (
                 <div className="pt-1">
                   <ManualCheckInModal
-                    places={manualPlaces}
+                    places={effectiveManualPlaces}
                     trigger={
                       <Button
                         variant="outline"
@@ -380,23 +748,33 @@ function NotCheckedIn({
                       name={place.name}
                       size="sm"
                     />
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
                         {place.name}
-                      </span>
-                      <span className="text-muted-foreground readout text-xs">
-                        {formatDistance(place.distanceM)}
-                      </span>
-                    </span>
+                      </p>
+                      <p className="text-muted-foreground truncate text-xs">
+                        {place.organizationName}
+                      </p>
+                    </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!place.canCheckIn || pending}
-                    onClick={() => enter(place)}
-                  >
-                    Check in
-                  </Button>
+                  <div className="shrink-0 text-right">
+                    <p className="readout text-sm">
+                      {formatDistance(place.distanceM)}
+                    </p>
+                    {place.canCheckIn ? (
+                      <button
+                        type="button"
+                        className="text-primary text-xs font-semibold hover:underline"
+                        onClick={() => enter(place)}
+                      >
+                        Check in
+                      </button>
+                    ) : (
+                      <p className="text-muted-foreground text-[11px]">
+                        within {place.radiusM} m
+                      </p>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -406,11 +784,15 @@ function NotCheckedIn({
             <Button variant="ghost" size="sm" disabled={pending} onClick={look}>
               Look again
             </Button>
-            {manualPlaces.length > 0 ? (
+            {effectiveManualPlaces.length > 0 ? (
               <ManualCheckInModal
-                places={manualPlaces}
+                places={effectiveManualPlaces}
                 trigger={
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs text-muted-foreground"
+                  >
                     <Hand className="size-3 text-amber-500" />
                     Manual
                   </Button>
@@ -427,9 +809,9 @@ function NotCheckedIn({
             of your organizations has registered.
           </p>
           <div className="flex flex-col items-center gap-2">
-            {manualPlaces.length > 0 ? (
+            {effectiveManualPlaces.length > 0 ? (
               <ManualCheckInModal
-                places={manualPlaces}
+                places={effectiveManualPlaces}
                 trigger={
                   <Button
                     variant="default"
@@ -437,7 +819,7 @@ function NotCheckedIn({
                     className="gap-2 text-xs"
                   >
                     <Hand className="size-3.5" />
-                    Check in manually ({manualPlaces.length} available)
+                    Check in manually ({effectiveManualPlaces.length} available)
                   </Button>
                 }
               />
@@ -458,6 +840,8 @@ function ConsentGate({
   manualPlaces?: ManualCheckInPlace[];
 }) {
   const [pending, startTransition] = useTransition();
+  const effectiveManualPlaces =
+    manualPlaces.length > 0 ? manualPlaces : getCachedOfflinePlaces();
 
   return (
     <div className="mx-auto max-w-md space-y-5 py-2">
@@ -493,13 +877,13 @@ function ConsentGate({
           {pending ? "One moment" : "Got it, continue"}
         </Button>
 
-        {manualPlaces.length > 0 ? (
+        {effectiveManualPlaces.length > 0 ? (
           <div className="border-t border-border/70 pt-4 w-full text-center space-y-2">
             <p className="text-xs text-muted-foreground">
               GPS unavailable or prefer not to use location?
             </p>
             <ManualCheckInModal
-              places={manualPlaces}
+              places={effectiveManualPlaces}
               trigger={
                 <Button
                   variant="outline"

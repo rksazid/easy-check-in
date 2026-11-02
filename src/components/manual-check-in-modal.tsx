@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Hand, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -8,6 +8,12 @@ import { manualCheckIn, type ManualCheckInPlace } from "@/actions/check-in";
 import { PlaceIcon } from "@/components/place-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  cacheOfflinePlaces,
+  enqueueOfflineEvent,
+  getCachedOfflinePlaces,
+  setLocalActiveCheckIn,
+} from "@/lib/offline-sync";
 import {
   Dialog,
   DialogContent,
@@ -36,25 +42,84 @@ export function ManualCheckInModal({
   const [pendingPlaceId, setPendingPlaceId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // If provided list is empty (e.g. offline launch), load from cached places
+  const [effectivePlaces, setEffectivePlaces] = useState<ManualCheckInPlace[]>(places);
+
+  useEffect(() => {
+    if (places && places.length > 0) {
+      cacheOfflinePlaces(places);
+      setEffectivePlaces(places);
+    } else {
+      const cached = getCachedOfflinePlaces();
+      if (cached.length > 0) {
+        setEffectivePlaces(cached);
+      }
+    }
+  }, [places]);
+
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
   const setIsOpen = isControlled ? setControlledOpen! : setInternalOpen;
 
   const filteredPlaces = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return places;
-    return places.filter(
+    if (!q) return effectivePlaces;
+    return effectivePlaces.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.organizationName.toLowerCase().includes(q) ||
         p.typeName.toLowerCase().includes(q) ||
         (p.address && p.address.toLowerCase().includes(q)),
     );
-  }, [places, search]);
+  }, [effectivePlaces, search]);
 
   function handleCheckIn(place: ManualCheckInPlace) {
     setPendingPlaceId(place.id);
     startTransition(async () => {
+      const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+      if (isOffline) {
+        const eventId = crypto.randomUUID();
+        const now = new Date();
+        enqueueOfflineEvent({
+          id: eventId,
+          type: "check_in",
+          placeId: place.id,
+          placeName: place.name,
+          organizationId: place.organizationId,
+          organizationName: place.organizationName,
+          placeTypeName: place.typeName,
+          placeTypeIcon: place.typeIcon,
+          isManual: true,
+          timestamp: now.toISOString(),
+        });
+
+        setLocalActiveCheckIn({
+          id: `offline-${eventId}`,
+          checkedInAt: now.toISOString(),
+          placeId: place.id,
+          placeName: place.name,
+          placeTypeName: place.typeName,
+          placeTypeIcon: place.typeIcon,
+          placeImageUrl: place.imageUrl ?? null,
+          organizationName: place.organizationName,
+          latitude: place.latitude,
+          longitude: place.longitude,
+          radiusM: 100,
+          captureCount: 1,
+          isManual: true,
+          status: "approved",
+          images: [],
+        });
+
+        toast.info(
+          `Checked in at ${place.name} (saved offline; will sync when server is reachable)`
+        );
+        setIsOpen(false);
+        setPendingPlaceId(null);
+        return;
+      }
+
       try {
         const res = await manualCheckIn(place.id);
         if (res.ok) {
@@ -64,7 +129,44 @@ export function ManualCheckInModal({
           toast.error(res.error);
         }
       } catch (err) {
-        toast.error((err as Error).message);
+        // Network timeout / connection lost / Vercel sleeping
+        const eventId = crypto.randomUUID();
+        const now = new Date();
+        enqueueOfflineEvent({
+          id: eventId,
+          type: "check_in",
+          placeId: place.id,
+          placeName: place.name,
+          organizationId: place.organizationId,
+          organizationName: place.organizationName,
+          placeTypeName: place.typeName,
+          placeTypeIcon: place.typeIcon,
+          isManual: true,
+          timestamp: now.toISOString(),
+        });
+
+        setLocalActiveCheckIn({
+          id: `offline-${eventId}`,
+          checkedInAt: now.toISOString(),
+          placeId: place.id,
+          placeName: place.name,
+          placeTypeName: place.typeName,
+          placeTypeIcon: place.typeIcon,
+          placeImageUrl: place.imageUrl ?? null,
+          organizationName: place.organizationName,
+          latitude: place.latitude,
+          longitude: place.longitude,
+          radiusM: 100,
+          captureCount: 1,
+          isManual: true,
+          status: "approved",
+          images: [],
+        });
+
+        toast.info(
+          `Connection slow or offline. Saved check-in locally; will sync automatically.`
+        );
+        setIsOpen(false);
       } finally {
         setPendingPlaceId(null);
       }
