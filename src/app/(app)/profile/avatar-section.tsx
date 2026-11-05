@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { adoptGravatar, removeAvatar, uploadAvatar } from "@/actions/profile";
 import { Avatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
+import { compressAvatarPhoto } from "@/lib/client-image-compression";
 
 const SOURCE_LABEL: Record<string, string> = {
   gravatar: "Showing your Gravatar.",
@@ -43,11 +44,25 @@ export function AvatarSection({
   function onFileChosen(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append("avatar", file);
-    run(() => uploadAvatar(null, formData), "Photo updated");
     // Allow re-picking the same file after a failure.
     event.target.value = "";
+
+    setError(null);
+    startTransition(async () => {
+      try {
+        const optimized = await compressAvatarPhoto(file);
+        const formData = new FormData();
+        formData.append("avatar", optimized);
+        const result = await uploadAvatar(null, formData);
+        if (result.ok) {
+          toast.success("Photo optimized & updated");
+        } else {
+          setError(result.error ?? "That did not work.");
+        }
+      } catch (err) {
+        setError((err as Error).message || "Could not process photo.");
+      }
+    });
   }
 
   return (
@@ -63,48 +78,53 @@ export function AvatarSection({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <input
-          ref={fileInput}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          className="sr-only"
-          onChange={onFileChosen}
-          disabled={pending}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={pending}
-          onClick={() => fileInput.current?.click()}
-        >
-          Upload a photo
-        </Button>
-
-        {avatarSource !== "gravatar" ? (
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="sr-only"
+            onChange={onFileChosen}
+            disabled={pending}
+          />
           <Button
             type="button"
             variant="outline"
             size="sm"
             disabled={pending}
-            onClick={() => run(adoptGravatar, "Now showing your Gravatar")}
+            onClick={() => fileInput.current?.click()}
           >
-            Use my Gravatar
+            {pending ? "Optimizing photo..." : "Upload a photo"}
           </Button>
-        ) : null}
 
-        {image ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={pending}
-            onClick={() => run(removeAvatar, "Photo removed")}
-          >
-            Remove
-          </Button>
-        ) : null}
+          {avatarSource !== "gravatar" ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              onClick={() => run(adoptGravatar, "Now showing your Gravatar")}
+            >
+              Use my Gravatar
+            </Button>
+          ) : null}
+
+          {image ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={pending}
+              onClick={() => run(removeAvatar, "Photo removed")}
+            >
+              Remove
+            </Button>
+          ) : null}
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Images are automatically resized and compressed under 500 KB.
+        </p>
       </div>
 
       {error ? (

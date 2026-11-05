@@ -10,7 +10,7 @@ import { gravatarUrl, hasGravatar } from "@/lib/avatar";
 import { db } from "@/lib/db/client";
 import { user as userTable } from "@/lib/db/schema";
 import { requireSession } from "@/lib/session";
-import { getStorage } from "@/lib/storage/provider";
+import { deleteStoredImage, saveUploadedImage, storageKeyFor } from "@/lib/storage/images";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -82,20 +82,13 @@ export async function adoptGravatar(): Promise<ActionResult> {
   return { ok: true };
 }
 
-const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const MAX_AVATAR_BYTES = 500 * 1024; // 500 KB limit
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/gif",
 ]);
-
-const EXTENSION_BY_TYPE: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
 
 export async function uploadAvatar(
   _prev: ActionResult | null,
@@ -113,7 +106,7 @@ export async function uploadAvatar(
   }
 
   if (file.size > MAX_AVATAR_BYTES) {
-    return { ok: false, error: "Images must be 2 MB or smaller." };
+    return { ok: false, error: "Images must be 500 KB or smaller." };
   }
 
   const previous = await db.query.user.findFirst({
@@ -121,19 +114,22 @@ export async function uploadAvatar(
     columns: { image: true, avatarSource: true },
   });
 
-  const storage = await getStorage();
-  // The random segment stops a replaced avatar from being served from a cache
-  // under its old URL.
-  const key = `avatars/${session.user.id}-${crypto.randomUUID()}.${EXTENSION_BY_TYPE[file.type]}`;
-  const stored = await storage.put(key, await file.arrayBuffer(), file.type);
+  try {
+    const stored = await saveUploadedImage(file, "avatars", session.user.id);
 
-  await db
-    .update(userTable)
-    .set({ image: stored.url, avatarSource: "upload" })
-    .where(eq(userTable.id, session.user.id));
+    await db
+      .update(userTable)
+      .set({ image: stored.url, avatarSource: "upload" })
+      .where(eq(userTable.id, session.user.id));
 
-  if (previous?.avatarSource === "upload" && previous.image) {
-    await storage.remove(storageKeyFor(previous.image));
+    if (previous?.avatarSource === "upload" && previous.image) {
+      await deleteStoredImage(previous.image);
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      error: (err as Error).message || "Could not save uploaded photo.",
+    };
   }
 
   revalidatePath("/profile");
@@ -150,8 +146,7 @@ export async function removeAvatar(): Promise<ActionResult> {
 
   // Only uploads occupy storage we pay for; a Gravatar URL is just a pointer.
   if (current?.avatarSource === "upload" && current.image) {
-    const storage = await getStorage();
-    await storage.remove(storageKeyFor(current.image));
+    await deleteStoredImage(current.image);
   }
 
   await db
@@ -161,11 +156,4 @@ export async function removeAvatar(): Promise<ActionResult> {
 
   revalidatePath("/profile");
   return { ok: true };
-}
-
-/** Local uploads are served from a path; Blob hands back an absolute URL. */
-function storageKeyFor(imageUrl: string) {
-  return imageUrl.startsWith("/uploads/")
-    ? imageUrl.slice("/uploads/".length)
-    : imageUrl;
 }

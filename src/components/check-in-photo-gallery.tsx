@@ -10,6 +10,7 @@ import {
   type CheckInImageItem,
 } from "@/actions/check-in";
 import { Button } from "@/components/ui/button";
+import { compressCheckInPhoto } from "@/lib/client-image-compression";
 import { cn } from "@/lib/utils";
 
 export function CheckInPhotoGallery({
@@ -38,22 +39,31 @@ export function CheckInPhotoGallery({
     if (files.length === 0) return;
 
     startTransition(async () => {
-      const formData = new FormData();
-      for (const file of files) {
-        formData.append("images", file);
-      }
-
-      const result = await uploadCheckInImages(checkInId, formData);
-      if (result.ok) {
-        toast.success(
-          result.count === 1
-            ? "Photo uploaded"
-            : `${result.count} photos uploaded`,
+      try {
+        const formData = new FormData();
+        // Optimize each image in parallel to ensure every file stays under 500 KB
+        const optimizedFiles = await Promise.all(
+          files.map((file) => compressCheckInPhoto(file)),
         );
-        // Reset file input
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      } else {
-        toast.error(result.error);
+
+        for (const file of optimizedFiles) {
+          formData.append("images", file);
+        }
+
+        const result = await uploadCheckInImages(checkInId, formData);
+        if (result.ok) {
+          toast.success(
+            result.count === 1
+              ? "Photo optimized & uploaded"
+              : `${result.count} photos optimized & uploaded`,
+          );
+          // Reset file input
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        } else {
+          toast.error(result.error);
+        }
+      } catch (err) {
+        toast.error((err as Error).message || "Could not process photos.");
       }
     });
   };
@@ -101,7 +111,7 @@ export function CheckInPhotoGallery({
               {pending ? (
                 <>
                   <Loader2 className="size-3.5 animate-spin" />
-                  Uploading…
+                  Optimizing & uploading…
                 </>
               ) : (
                 <>
@@ -119,7 +129,7 @@ export function CheckInPhotoGallery({
           <ImagePlus className="text-muted-foreground mx-auto size-8 stroke-1" />
           <p className="text-muted-foreground mt-2 text-xs">
             {canUpload
-              ? "No photos added yet. Upload gym workouts, desk setups, or proof of visit."
+              ? "No photos added yet. Upload workouts, setups, or proof of visit (auto-optimized under 500 KB)."
               : "No photos attached to this visit."}
           </p>
           {canUpload ? (

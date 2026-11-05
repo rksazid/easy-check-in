@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { compressPlacePhoto } from "@/lib/client-image-compression";
 
 const MIN_RADIUS_M = 25;
 // The column permits up to 2000 m, but the slider stops at 500 because a
@@ -204,11 +205,22 @@ export function PlaceForm({
               accept="image/*"
               className="hidden"
               disabled={pending}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  setPreviewUrl(URL.createObjectURL(file));
-                  setRemoveImage(false);
+                  try {
+                    const optimized = await compressPlacePhoto(file);
+                    if (typeof DataTransfer !== "undefined") {
+                      const dt = new DataTransfer();
+                      dt.items.add(optimized);
+                      e.target.files = dt.files;
+                    }
+                    setPreviewUrl(URL.createObjectURL(optimized));
+                    setRemoveImage(false);
+                  } catch {
+                    setPreviewUrl(URL.createObjectURL(file));
+                    setRemoveImage(false);
+                  }
                 }
               }}
             />
@@ -230,8 +242,7 @@ export function PlaceForm({
             ) : null}
 
             <p className="text-muted-foreground text-xs">
-              Upload a front photo, entrance, or building view (JPEG, PNG, WebP up
-              to 10 MB).
+              Upload a front photo, entrance, or building view (automatically optimized under 500 KB).
             </p>
           </div>
         </div>
