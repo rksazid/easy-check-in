@@ -10,7 +10,7 @@ import { gravatarUrl, hasGravatar } from "@/lib/avatar";
 import { db } from "@/lib/db/client";
 import { user as userTable } from "@/lib/db/schema";
 import { requireSession } from "@/lib/session";
-import { deleteStoredImage, saveUploadedImage, storageKeyFor } from "@/lib/storage/images";
+import { deleteStoredImage, saveUploadedImage } from "@/lib/storage/images";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 

@@ -237,7 +237,7 @@ export async function syncOfflineQueue(): Promise<{
       syncedCount: data.syncedCount ?? successfulIds.length,
       remainingCount: remaining,
     };
-  } catch (err) {
+  } catch {
     // Network still unavailable or server still asleep
     return { ok: false, syncedCount: 0, remainingCount: getOfflineQueue().length };
   } finally {

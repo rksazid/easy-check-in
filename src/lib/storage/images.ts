@@ -89,7 +89,7 @@ export async function optimizeImageBuffer(
       mimeType: "image/webp",
       extension: "webp",
     };
-  } catch (error) {
+  } catch {
     // If sharp fails to decode (e.g. animated GIF or raw vector), fallback to raw if under limit
     if (inputBuffer.length > MAX_PHOTO_BYTES) {
       throw new Error("Image must be 500 KB or smaller.");

@@ -43,3 +43,4 @@ describe("client-image-compression", () => {
     expect(checkInRes).toBeDefined();
   });
 });
+

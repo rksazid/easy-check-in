@@ -68,8 +68,8 @@ export async function compressImageToUnder500KB(
   }
 
   const maxBytes = options.maxBytes ?? TARGET_MAX_IMAGE_BYTES;
-  let maxWidth = options.maxWidth ?? 1600;
-  let maxHeight = options.maxHeight ?? 1600;
+  const maxWidth = options.maxWidth ?? 1600;
+  const maxHeight = options.maxHeight ?? 1600;
   let quality = options.initialQuality ?? 0.82;
   const minQuality = options.minQuality ?? 0.35;
 
@@ -191,3 +191,4 @@ export async function compressPlacePhoto(file: File): Promise<File> {
     minQuality: 0.35,
   });
 }
+
